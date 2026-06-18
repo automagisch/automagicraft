@@ -26,7 +26,7 @@ export function setLoading(message: string, detail?: string): void {
 
 function showPlayPrompt(): void {
   byId('overlay').classList.remove('hidden')
-  byId('ov-title').textContent = 'Voxel World'
+  byId('ov-title').textContent = 'automagicraft'
   byId('ov-text').textContent = 'A first-person voxel world to wander.'
   setMenuVisible(true)
   selectTab('explore')

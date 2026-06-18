@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Voxel World</title>
+    <title>automagicraft</title>
     <style>
       :root { color-scheme: dark; }
       * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -80,6 +80,14 @@
       .credit a { color: #8fc0e0; text-decoration: none; }
       .credit a:hover { text-decoration: underline; }
 
+      .tagline { margin-top: 16px; font-size: 12px; color: #9fb2c0; }
+      .tagline a, .made-by a { color: #8fc0e0; text-decoration: none; }
+      .tagline a:hover, .made-by a:hover { text-decoration: underline; }
+      .made-by {
+        margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.08);
+        font-size: 11px; line-height: 1.6; color: #7e91a0; font-style: italic;
+      }
+
       .hidden { display: none !important; }
     </style>
   </head>
@@ -103,6 +111,10 @@
               <kbd>Space</kbd> jump &nbsp;·&nbsp; <kbd>Mouse</kbd> look<br />
               <span style="opacity: 0.7">Click the world to play · Esc releases the cursor</span>
             </div>
+            <p class="tagline">
+              Crafted by <a href="https://github.com/automagisch" target="_blank" rel="noopener">Automagisch</a>,
+              with the help of <a href="https://claude.ai" target="_blank" rel="noopener">Claude</a>.
+            </p>
           </div>
 
           <div class="panel hidden" id="panel-settings">
@@ -136,6 +148,11 @@
                 <a href="https://uppbeat.io/t/all-ambient/willow-of-the-depths" target="_blank" rel="noopener">uppbeat.io</a>
               </div>
             </div>
+            <p class="made-by">
+              Built by <a href="https://github.com/automagisch" target="_blank" rel="noopener">Automagisch</a>
+              &amp; <a href="https://claude.ai" target="_blank" rel="noopener">Claude</a> — I, Claude, kindly
+              handed Automagisch the keyboard and supervised every block. He thinks it was his idea.
+            </p>
           </div>
         </div>
       </div>

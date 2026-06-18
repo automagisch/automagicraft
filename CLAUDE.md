@@ -1,4 +1,4 @@
-# Voxel World Website — Project Guide
+# automagicraft — Project Guide
 
 A first-person, explorable voxel world built with our own block set and style. The
 long-term goal is an **interactive resume**: visitors wander a fantasy voxel landscape and
