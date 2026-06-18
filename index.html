@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Voxel World</title>
+    <style>
+      :root { color-scheme: dark; }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        height: 100%;
+        overflow: hidden;
+        background: #9ad0ec;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      canvas { display: block; }
+
+      #hud { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
+
+      #crosshair {
+        position: absolute; left: 50%; top: 50%;
+        width: 18px; height: 18px; transform: translate(-50%, -50%);
+        opacity: 0.85;
+      }
+      #crosshair::before, #crosshair::after {
+        content: ""; position: absolute; background: #fff;
+        box-shadow: 0 0 2px rgba(0, 0, 0, 0.6);
+      }
+      #crosshair::before { left: 50%; top: 0; width: 2px; height: 100%; transform: translateX(-50%); }
+      #crosshair::after { top: 50%; left: 0; height: 2px; width: 100%; transform: translateY(-50%); }
+
+      #overlay {
+        position: absolute; inset: 0;
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(8, 16, 24, 0.5);
+        backdrop-filter: blur(2px);
+      }
+      #overlay .card {
+        background: rgba(18, 28, 38, 0.88);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        padding: 28px 34px; border-radius: 14px; text-align: center;
+        color: #eaf2f8; max-width: 460px; min-width: 360px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+        pointer-events: auto; /* clicks on the panel don't fall through to lock the pointer */
+      }
+      #overlay h1 { font-size: 20px; letter-spacing: 0.5px; margin-bottom: 10px; }
+      #overlay p { font-size: 13px; line-height: 1.7; color: #b9c7d2; }
+      #overlay .keys { margin-top: 16px; font-size: 12px; color: #9fb2c0; line-height: 2.1; }
+      kbd {
+        display: inline-block; background: #2b3a47;
+        border: 1px solid #43586a; border-bottom-width: 2px; border-radius: 5px;
+        padding: 1px 7px; margin: 0 2px; color: #eaf2f8; font-size: 11px;
+      }
+
+      /* Menu tabs (shown only while paused / loaded, never during loading). */
+      #tabs { display: flex; gap: 6px; justify-content: center; margin: 16px 0 4px; }
+      #tabs button {
+        font: inherit; font-size: 12px; cursor: pointer;
+        background: rgba(43, 58, 71, 0.6); color: #b9c7d2;
+        border: 1px solid #43586a; border-radius: 7px; padding: 5px 14px;
+        transition: background 0.15s, color 0.15s;
+      }
+      #tabs button:hover { background: rgba(67, 88, 106, 0.7); color: #eaf2f8; }
+      #tabs button.active { background: #5b87a8; border-color: #79a7c8; color: #fff; }
+
+      .panel { margin-top: 14px; }
+
+      /* Settings */
+      .setting { display: flex; align-items: center; gap: 12px; justify-content: center; font-size: 13px; color: #b9c7d2; }
+      .setting input[type="range"] { width: 200px; accent-color: #5b87a8; cursor: pointer; }
+      #vol-value { width: 38px; text-align: right; color: #eaf2f8; }
+
+      /* Credits */
+      #panel-credits .lead { margin-bottom: 12px; }
+      .credit { font-size: 12px; line-height: 1.5; padding: 8px 0; border-top: 1px solid rgba(255,255,255,0.08); }
+      .credit:first-of-type { border-top: none; }
+      .credit .t { color: #eaf2f8; font-size: 13px; }
+      .credit .by { color: #9fb2c0; }
+      .credit .lic { color: #7e91a0; font-size: 11px; }
+      .credit a { color: #8fc0e0; text-decoration: none; }
+      .credit a:hover { text-decoration: underline; }
+
+      .hidden { display: none !important; }
+    </style>
+  </head>
+  <body>
+    <div id="hud">
+      <div id="crosshair" class="hidden"></div>
+      <div id="overlay">
+        <div class="card">
+          <h1 id="ov-title">Generating world…</h1>
+          <p id="ov-text">Carving hills, a valley and a mountain.</p>
+
+          <div id="tabs" class="hidden">
+            <button data-tab="explore" class="active">Explore</button>
+            <button data-tab="settings">Settings</button>
+            <button data-tab="credits">Credits</button>
+          </div>
+
+          <div class="panel" id="panel-explore">
+            <div class="keys" id="ov-keys">
+              <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move &nbsp;·&nbsp;
+              <kbd>Space</kbd> jump &nbsp;·&nbsp; <kbd>Mouse</kbd> look<br />
+              <span style="opacity: 0.7">Click the world to play · Esc releases the cursor</span>
+            </div>
+          </div>
+
+          <div class="panel hidden" id="panel-settings">
+            <label class="setting">
+              Music volume
+              <input id="vol-slider" type="range" min="0" max="100" value="50" />
+              <span id="vol-value">50%</span>
+            </label>
+          </div>
+
+          <div class="panel hidden" id="panel-credits">
+            <p class="lead">Background music — royalty-free, courtesy of these artists:</p>
+            <div class="credit">
+              <div class="t">Kawaii Kitsune</div>
+              <div class="by">Kevin MacLeod</div>
+              <div class="lic">License RNJBVWPTSLUCOEYF ·
+                <a href="https://uppbeat.io/t/kevin-macleod/kawai-kitsune" target="_blank" rel="noopener">uppbeat.io</a>
+              </div>
+            </div>
+            <div class="credit">
+              <div class="t">Telluride</div>
+              <div class="by">92elm</div>
+              <div class="lic">License 592IT8V9ZCSU3C3V ·
+                <a href="https://uppbeat.io/t/92elm/telluride" target="_blank" rel="noopener">uppbeat.io</a>
+              </div>
+            </div>
+            <div class="credit">
+              <div class="t">Willow of the Depths</div>
+              <div class="by">All Ambient</div>
+              <div class="lic">License OKA6MGNH5QQ81XGM ·
+                <a href="https://uppbeat.io/t/all-ambient/willow-of-the-depths" target="_blank" rel="noopener">uppbeat.io</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
