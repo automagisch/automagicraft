@@ -42,6 +42,23 @@ gate is the typecheck.
 
 ---
 
+## Git workflow (GitHub flow)
+
+`main` is always deployable. **Every piece of work gets its own branch** — never commit
+features directly to `main`. The cycle:
+
+1. **Branch** off the latest `main`: `git switch -c <type>/<short-name>`
+   (e.g. `feat/water-blocks`, `fix/step-assist`, `chore/deps`).
+2. **Commit** small, focused changes on that branch. Run the build gate before committing.
+3. **Push** the branch and open a PR: `git push -u origin <branch>` → `gh pr create`.
+4. **Review** at the PR (the owner reviews at the plan's gates), then **merge** into `main`.
+5. **Delete** the merged branch and pull `main` before starting the next piece.
+
+Keep one branch per logical part so each is reviewable on its own. Only commit/push/branch
+when asked (per the harness rules); don't merge your own PRs without a review.
+
+---
+
 ## Architecture
 
 Thin layer over **Three.js** (no game engine). TypeScript + Vite. Static output.
