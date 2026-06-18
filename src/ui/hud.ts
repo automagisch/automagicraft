@@ -50,6 +50,10 @@ function selectTab(tab: string): void {
   }
 }
 
+export function setUnderwater(underwater: boolean): void {
+  byId('water-overlay').classList.toggle('hidden', !underwater)
+}
+
 // Wires the menu tabs and the music-volume slider. Call once after the player exists.
 export function initMenu(music: MusicPlayer): void {
   for (const btn of byId('tabs').querySelectorAll<HTMLButtonElement>('button')) {

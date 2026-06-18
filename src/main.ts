@@ -3,11 +3,12 @@ import { createRenderer } from './render/renderer'
 import { DayNightCycle } from './render/sky'
 import { World } from './engine/World'
 import { generateTerrain } from './engine/terrain'
-import { buildChunkGeometry } from './engine/mesher'
+import { buildChunkGeometry, buildWaterGeometry } from './engine/mesher'
 import { Player } from './player/Player'
 import { Controls } from './player/controls'
 import { updatePlayer, WALK_SPEED } from './player/physics'
-import { setLoading, setLocked, initMenu } from './ui/hud'
+import { Block } from './engine/blocks'
+import { setLoading, setLocked, initMenu, setUnderwater } from './ui/hud'
 import { MusicPlayer } from './audio/music'
 
 const WORLD_X = 512
@@ -28,6 +29,12 @@ document.body.appendChild(renderer.domElement)
 
 const world = new World(WORLD_X, WORLD_Y, WORLD_Z)
 const material = new THREE.MeshBasicMaterial({ vertexColors: true })
+const waterMaterial = new THREE.MeshBasicMaterial({
+  vertexColors: true,
+  transparent: true,
+  opacity: 0.68,
+  depthWrite: false,
+})
 
 // Background music starts on the first click into the world (autoplay needs a user gesture).
 const music = new MusicPlayer()
@@ -74,6 +81,8 @@ async function start(): Promise<void> {
       const [cx, cz] = chunks[i++]
       const geo = buildChunkGeometry(world, cx, cz, CHUNK)
       if (geo) scene.add(new THREE.Mesh(geo, material))
+      const waterGeo = buildWaterGeometry(world, cx, cz, CHUNK)
+      if (waterGeo) scene.add(new THREE.Mesh(waterGeo, waterMaterial))
     }
     setLoading('Building the world…', `${Math.round((i / chunks.length) * 100)}%`)
     await yieldToLoop()
@@ -95,7 +104,7 @@ async function start(): Promise<void> {
 
   player = new Player(spawn[0], spawn[1], spawn[2])
   controls = new Controls(renderer.domElement, setLocked)
-  dayNight = new DayNightCycle(scene, material)
+  dayNight = new DayNightCycle(scene, material, 0.3, waterMaterial)
 
   initMenu(music)
   setLocked(false)
@@ -178,5 +187,22 @@ function loop(): void {
   camera.rotation.set(input.pitch, input.yaw, roll, 'YXZ')
 
   dayNight.update(dt, camera.position)
+
+  // When the camera eye is inside a water block, show the blue tint overlay and
+  // thicken the fog so the world dissolves quickly into murky blue.
+  const eyeInWater =
+    world.getBlock(
+      Math.floor(camera.position.x),
+      Math.floor(camera.position.y),
+      Math.floor(camera.position.z),
+    ) === Block.Water
+  setUnderwater(eyeInWater)
+  if (eyeInWater) {
+    scene.fog!.color.setHex(0x1a5080)
+    ;(scene.fog as THREE.FogExp2).density = 0.18
+  } else {
+    ;(scene.fog as THREE.FogExp2).density = 0.007
+  }
+
   renderer.render(scene, camera)
 }

@@ -2,6 +2,9 @@ import * as THREE from 'three'
 import { Block, BLOCK_COLORS } from './blocks'
 import type { World } from './World'
 
+// How far below full block height the top-water surface sits (gives the "embedded" look).
+const WATER_TOP_Y = 0.97
+
 // Brightness per ambient-occlusion level (0 = most occluded corner, 3 = open).
 const AO_BRIGHTNESS = [0.45, 0.62, 0.8, 1.0]
 
@@ -116,11 +119,13 @@ export function buildChunkGeometry(
   const terrMap = world.terrainHeight!
 
   // Fast solid test: the world floor (y<0) is solid (cull bottom faces); sky and the
-  // horizontal borders read as air.
+  // horizontal borders read as air. Water is treated as air here so that solid-block faces
+  // adjacent to water are emitted and stay visible through the translucent water mesh.
   const solid = (x: number, y: number, z: number): boolean => {
     if (y < 0) return true
     if (x < 0 || x >= SX || y >= SY || z < 0 || z >= SZ) return false
-    return data[x + SX * z + SXZ * y] !== 0
+    const b = data[x + SX * z + SXZ * y]
+    return b !== 0 && b !== Block.Water
   }
 
   const x1 = Math.min(cx0 + csize, SX)
@@ -142,7 +147,7 @@ export function buildChunkGeometry(
 
       for (let y = startY; y <= top; y++) {
         const id = data[x + SX * z + SXZ * y]
-        if (id === Block.Air) continue
+        if (id === Block.Air || id === Block.Water) continue
 
         const palette = BLOCK_COLORS[id]
         for (const f of FACES) {
@@ -206,4 +211,81 @@ function aoAt(
   const side2 = solid(nx + vx, ny + vy, nz + vz)
   const corner = solid(nx + ux + vx, ny + uy + vy, nz + uz + vz)
   return vertexAO(side1, side2, corner)
+}
+
+// Builds one translucent water geometry for the chunk region.
+// Only water-to-air faces are emitted; water-to-water and water-to-solid are culled.
+// The topmost water block in each column (air above) has its upper edge lowered to
+// WATER_TOP_Y so water reads as slightly recessed into the landscape.
+export function buildWaterGeometry(
+  world: World,
+  cx0: number,
+  cz0: number,
+  csize: number,
+): THREE.BufferGeometry | null {
+  const positions: number[] = []
+  const colors: number[] = []
+  const indices: number[] = []
+  let vcount = 0
+
+  const data = world.data
+  const SX = world.sizeX
+  const SY = world.sizeY
+  const SZ = world.sizeZ
+  const SXZ = SX * SZ
+  const topMap = world.topY!
+
+  // A water face is visible only when the neighbor is pure air.
+  const isAir = (x: number, y: number, z: number): boolean => {
+    if (y < 0 || y >= SY) return false
+    if (x < 0 || x >= SX || z < 0 || z >= SZ) return true
+    return data[x + SX * z + SXZ * y] === Block.Air
+  }
+
+  const palette = BLOCK_COLORS[Block.Water]
+  const x1 = Math.min(cx0 + csize, SX)
+  const z1 = Math.min(cz0 + csize, SZ)
+
+  for (let z = cz0; z < z1; z++) {
+    for (let x = cx0; x < x1; x++) {
+      const top = topMap[x + z * SX]
+      if (top < 0) continue
+
+      for (let y = 0; y <= top; y++) {
+        if (data[x + SX * z + SXZ * y] !== Block.Water) continue
+
+        // Is this the surface layer? (no water directly above)
+        const aboveIsWater =
+          y + 1 < SY && data[x + SX * z + SXZ * (y + 1)] === Block.Water
+        const isTopBlock = !aboveIsWater
+
+        for (const f of FACES) {
+          if (!isAir(x + f.nb[0], y + f.nb[1], z + f.nb[2])) continue
+
+          const base = palette[f.colorKey]
+
+          for (let i = 0; i < 4; i++) {
+            const vert = f.verts[i]
+            // Top-water blocks: cap the upper edge so the surface sits slightly below a
+            // full block height — applies to both the top face and the top corners of sides.
+            const py = isTopBlock && vert.pos[1] >= 1 ? WATER_TOP_Y : vert.pos[1]
+            positions.push(x + vert.pos[0], y + py, z + vert.pos[2])
+            colors.push(base[0] * f.shade, base[1] * f.shade, base[2] * f.shade)
+          }
+
+          indices.push(vcount, vcount + 1, vcount + 2, vcount, vcount + 2, vcount + 3)
+          vcount += 4
+        }
+      }
+    }
+  }
+
+  if (vcount === 0) return null
+
+  const geo = new THREE.BufferGeometry()
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
+  geo.setIndex(indices)
+  geo.computeBoundingSphere()
+  return geo
 }

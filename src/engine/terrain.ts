@@ -24,6 +24,7 @@ const BASE_LEVEL = 34 // average ground height
 const HILL_AMPLITUDE = 18 // vertical spread of hills/valleys around the base
 const SAND_LEVEL = 28 // at/below this the surface is sand (valley floor / shores)
 const ROCK_LEVEL = 62 // at/above this the surface is bare stone (peaks)
+const WATER_LEVEL = 27 // water fills columns with terrain height below this up to this y
 
 export function generateTerrain(world: World, cfg: TerrainConfig): void {
   const noise2D = createNoise2D(mulberry32(cfg.seed))
@@ -101,6 +102,20 @@ export function generateTerrain(world: World, cfg: TerrainConfig): void {
   }
 
   scatterTrees(world, heights, cfg, treeRng)
+
+  // Flood low-lying valleys with water up to WATER_LEVEL.
+  for (let z = 0; z < sizeZ; z++) {
+    for (let x = 0; x < sizeX; x++) {
+      const h = heights[hi(x, z)]
+      if (h < WATER_LEVEL) {
+        for (let y = h + 1; y <= WATER_LEVEL; y++) {
+          if (world.getBlock(x, y, z) === Block.Air) {
+            world.setBlock(x, y, z, Block.Water)
+          }
+        }
+      }
+    }
+  }
 
   // Publish per-column bounds for the mesher: continuous ground height, and the topmost
   // non-air cell (trees/leaves included).
