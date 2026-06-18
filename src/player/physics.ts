@@ -1,3 +1,4 @@
+import { Block } from '../engine/blocks'
 import type { World } from '../engine/World'
 import type { Player } from './Player'
 
@@ -8,6 +9,14 @@ export const AIR_ACCEL = 16 // gentle steering while airborne (momentum is other
 export const GRAVITY = 28 // blocks / second^2
 export const JUMP_SPEED = 8.2 // ~1.2 blocks of clearance
 export const STEP_HEIGHT = 1.05 // auto step-up height (clears a 1-block ledge)
+
+// Water movement tunables.
+const WATER_WALK_SPEED = WALK_SPEED * 0.38  // ~1.75 — wading is slow
+const WATER_ACCEL = 18                       // sluggish acceleration
+const WATER_DRAG = 10                        // drag when no input (replaces ground friction)
+const WATER_GRAVITY = GRAVITY * 0.18         // ~5 — nearly weightless
+const WATER_BUOYANCY = GRAVITY * 0.14        // ~3.9 — net force: slow downward drift
+const WATER_SWIM_SPEED = 3.8                 // upward speed when pressing space
 
 const MAX_FALL = 42
 const MAX_SUBSTEP = 0.2 // cap per-axis move so at most one block boundary is crossed
@@ -25,13 +34,26 @@ function approach(value: number, target: number, maxDelta: number): number {
   return Math.max(value - maxDelta, target)
 }
 
+// True when any part of the player's body (feet or center) is submerged in water.
+function isPlayerInWater(player: Player, world: World): boolean {
+  const px = Math.floor(player.position[0])
+  const pz = Math.floor(player.position[2])
+  const feetY = Math.floor(player.position[1] - player.hy + 0.1)
+  const midY = Math.floor(player.position[1])
+  return (
+    world.getBlock(px, feetY, pz) === Block.Water ||
+    world.getBlock(px, midY, pz) === Block.Water
+  )
+}
+
 // Advances the player one fixed timestep: integrates velocity (with momentum), applies
 // gravity/jump, then resolves collisions axis by axis with auto step-up over 1-block ledges.
 export function updatePlayer(player: Player, world: World, input: MoveInput, dt: number): void {
+  const inWater = isPlayerInWater(player, world)
+
   // Desired horizontal direction relative to the camera's yaw.
   const sin = Math.sin(input.yaw)
   const cos = Math.cos(input.yaw)
-  // forward = (-sin, -cos), right = (cos, -sin)
   let dirX = -sin * input.forward + cos * input.right
   let dirZ = -cos * input.forward - sin * input.right
   const dirLen = Math.hypot(dirX, dirZ)
@@ -41,33 +63,50 @@ export function updatePlayer(player: Player, world: World, input: MoveInput, dt:
     dirZ /= dirLen
   }
 
-  if (player.onGround) {
-    // Responsive ground control: accelerate toward target, brake to a stop with no input.
+  if (inWater) {
+    // Sluggish water movement — accelerate slowly, drag to a stop with no input.
     if (hasInput) {
-      player.vx = approach(player.vx, dirX * WALK_SPEED, GROUND_ACCEL * dt)
-      player.vz = approach(player.vz, dirZ * WALK_SPEED, GROUND_ACCEL * dt)
+      player.vx = approach(player.vx, dirX * WATER_WALK_SPEED, WATER_ACCEL * dt)
+      player.vz = approach(player.vz, dirZ * WATER_WALK_SPEED, WATER_ACCEL * dt)
     } else {
-      player.vx = approach(player.vx, 0, GROUND_FRICTION * dt)
-      player.vz = approach(player.vz, 0, GROUND_FRICTION * dt)
+      player.vx = approach(player.vx, 0, WATER_DRAG * dt)
+      player.vz = approach(player.vz, 0, WATER_DRAG * dt)
     }
-  } else if (hasInput) {
-    // Airborne: keep momentum, allow only a light nudge, never exceeding walk speed.
-    player.vx += dirX * AIR_ACCEL * dt
-    player.vz += dirZ * AIR_ACCEL * dt
-    const sp = Math.hypot(player.vx, player.vz)
-    if (sp > WALK_SPEED) {
-      player.vx *= WALK_SPEED / sp
-      player.vz *= WALK_SPEED / sp
-    }
-  }
-  // Airborne with no input: velocity is left untouched, so a running jump keeps flying.
 
-  // Gravity + jump.
-  player.vy -= GRAVITY * dt
-  if (player.vy < -MAX_FALL) player.vy = -MAX_FALL
-  if (input.jump && player.onGround) {
-    player.vy = JUMP_SPEED
-    player.onGround = false
+    // Buoyancy: near-weightless, space swims upward.
+    player.vy -= WATER_GRAVITY * dt
+    player.vy += WATER_BUOYANCY * dt
+    if (player.vy < -MAX_FALL * 0.25) player.vy = -MAX_FALL * 0.25
+    if (input.jump) player.vy = WATER_SWIM_SPEED
+  } else {
+    if (player.onGround) {
+      // Responsive ground control: accelerate toward target, brake to a stop with no input.
+      if (hasInput) {
+        player.vx = approach(player.vx, dirX * WALK_SPEED, GROUND_ACCEL * dt)
+        player.vz = approach(player.vz, dirZ * WALK_SPEED, GROUND_ACCEL * dt)
+      } else {
+        player.vx = approach(player.vx, 0, GROUND_FRICTION * dt)
+        player.vz = approach(player.vz, 0, GROUND_FRICTION * dt)
+      }
+    } else if (hasInput) {
+      // Airborne: keep momentum, allow only a light nudge, never exceeding walk speed.
+      player.vx += dirX * AIR_ACCEL * dt
+      player.vz += dirZ * AIR_ACCEL * dt
+      const sp = Math.hypot(player.vx, player.vz)
+      if (sp > WALK_SPEED) {
+        player.vx *= WALK_SPEED / sp
+        player.vz *= WALK_SPEED / sp
+      }
+    }
+    // Airborne with no input: velocity is left untouched, so a running jump keeps flying.
+
+    // Gravity + jump.
+    player.vy -= GRAVITY * dt
+    if (player.vy < -MAX_FALL) player.vy = -MAX_FALL
+    if (input.jump && player.onGround) {
+      player.vy = JUMP_SPEED
+      player.onGround = false
+    }
   }
 
   // Vertical first, so groundedness is known before the horizontal step.
@@ -77,8 +116,13 @@ export function updatePlayer(player: Player, world: World, input: MoveInput, dt:
     player.vy = 0
   }
 
-  // Horizontal with step-assist.
-  moveHorizontal(player, world, player.vx * dt, player.vz * dt)
+  // Horizontal with step-assist (skip in water — no stepping over blocks while swimming).
+  if (inWater) {
+    moveAxis(player, world, 0, player.vx * dt)
+    moveAxis(player, world, 2, player.vz * dt)
+  } else {
+    moveHorizontal(player, world, player.vx * dt, player.vz * dt)
+  }
 }
 
 function moveHorizontal(player: Player, world: World, dx: number, dz: number): void {

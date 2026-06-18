@@ -53,6 +53,7 @@ export class DayNightCycle {
 
   private readonly scene: THREE.Scene
   private readonly material: THREE.MeshBasicMaterial
+  private readonly waterMaterial: THREE.MeshBasicMaterial | null
   private readonly sun: THREE.Sprite
   private readonly moon: THREE.Sprite
   private readonly stars: THREE.Points
@@ -62,9 +63,11 @@ export class DayNightCycle {
     scene: THREE.Scene,
     chunkMaterial: THREE.MeshBasicMaterial,
     startTime = 0.3,
+    waterMaterial: THREE.MeshBasicMaterial | null = null,
   ) {
     this.scene = scene
     this.material = chunkMaterial
+    this.waterMaterial = waterMaterial
     this.time = startTime
 
     const disc = discTexture()
@@ -150,6 +153,7 @@ export class DayNightCycle {
     let tint = mix(TINT_NIGHT, TINT_DAY, dayAmt)
     tint = mix(tint, TINT_DUSK, duskAmt * 0.5)
     this.material.color.setRGB(tint[0], tint[1], tint[2])
+    this.waterMaterial?.color.setRGB(tint[0], tint[1], tint[2])
 
     // Sun.
     const sunVisible = e > -0.12

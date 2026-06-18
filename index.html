@@ -89,11 +89,18 @@
       }
 
       .hidden { display: none !important; }
+
+      #water-overlay {
+        position: absolute; inset: 0;
+        background: rgba(30, 90, 150, 0.32);
+        pointer-events: none;
+      }
     </style>
   </head>
   <body>
     <div id="hud">
       <div id="crosshair" class="hidden"></div>
+      <div id="water-overlay" class="hidden"></div>
       <div id="overlay">
         <div class="card">
           <h1 id="ov-title">Generating world…</h1>
