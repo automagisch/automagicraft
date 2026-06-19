@@ -161,7 +161,9 @@ function placeTree(
   maxH: number,
   rng: () => number,
 ): number {
-  const trunk = 4 + Math.floor(rng() * 3) // 4..6 logs
+  // Trunk weighted toward 5 (3 visible stem blocks under canopy): 15% → 4, 70% → 5, 15% → 6
+  const tr = rng()
+  const trunk = tr < 0.15 ? 4 : tr < 0.85 ? 5 : 6
   const topY = baseY + trunk - 1
 
   for (let i = 0; i < trunk; i++) {

@@ -111,7 +111,7 @@ async function start(): Promise<void> {
   player = new Player(spawn[0], spawn[1], spawn[2])
   controls = new Controls(renderer.domElement, setLocked)
   dayNight = new DayNightCycle(scene, material, 0.3, waterMaterial)
-  mobs = new MobManager(scene, material, treeTops, mulberry32(SEED ^ 0xdeadbeef))
+  mobs = new MobManager(scene, material, treeTops, world, mulberry32(SEED ^ 0xdeadbeef))
 
   initMenu(music, sfx)
   setLocked(false)
