@@ -94,9 +94,42 @@
       .panel { margin-top: 14px; }
 
       /* Settings */
-      .setting { display: flex; align-items: center; gap: 12px; justify-content: center; font-size: 13px; color: #b9c7d2; }
-      .setting input[type="range"] { width: 200px; accent-color: #5b87a8; cursor: pointer; }
-      #vol-value { width: 38px; text-align: right; color: #eaf2f8; }
+      .setting-section { margin-top: 14px; }
+      .setting-section-hdr {
+        font-size: 10px; letter-spacing: 0.8px; text-transform: uppercase;
+        color: #ffe97a; opacity: 0.8; margin-bottom: 8px; text-align: left;
+        border-bottom: 1px solid rgba(255,220,60,0.15); padding-bottom: 4px;
+      }
+      .setting { display: flex; align-items: center; gap: 10px; justify-content: center; font-size: 13px; color: #b9c7d2; }
+      .setting + .setting { margin-top: 8px; }
+      .setting label-text { flex: 0 0 auto; }
+      .setting input[type="range"] { width: 160px; accent-color: #5b87a8; cursor: pointer; }
+      .setting input[type="number"] {
+        width: 90px; background: rgba(43,58,71,0.7); border: 1px solid #43586a;
+        border-radius: 5px; color: #eaf2f8; font: inherit; font-size: 12px;
+        padding: 4px 7px; text-align: center;
+        -moz-appearance: textfield;
+      }
+      .setting input[type="number"]::-webkit-inner-spin-button,
+      .setting input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
+      #vol-value, #sfx-value { width: 38px; text-align: right; color: #eaf2f8; font-size: 12px; }
+      .seed-row { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 0; }
+      .seed-row button, #btn-reseed {
+        font: inherit; font-size: 11px; cursor: pointer;
+        background: rgba(43,58,71,0.6); color: #b9c7d2;
+        border: 1px solid #43586a; border-radius: 6px; padding: 4px 10px;
+        transition: background 0.15s, color 0.15s;
+      }
+      .seed-row button:hover, #btn-reseed:hover:not(:disabled) {
+        background: rgba(67,88,106,0.7); color: #eaf2f8;
+      }
+      #btn-reseed {
+        display: block; margin: 8px auto 0; width: 100%;
+        background: rgba(91,135,168,0.2); border-color: #5b87a8; color: #79a7c8;
+        padding: 6px 0; font-size: 12px;
+      }
+      #btn-reseed:not(:disabled) { background: rgba(91,135,168,0.4); color: #eaf2f8; }
+      #btn-reseed:disabled { opacity: 0.38; cursor: default; }
 
       /* Credits */
       #credits-scroll-wrap {
@@ -260,16 +293,28 @@
           </div>
 
           <div class="panel hidden" id="panel-settings">
-            <label class="setting">
-              Music volume
-              <input id="vol-slider" type="range" min="0" max="100" value="20" />
-              <span id="vol-value">20%</span>
-            </label>
-            <label class="setting" style="margin-top: 10px;">
-              SFX: environment
-              <input id="sfx-slider" type="range" min="0" max="100" value="60" />
-              <span id="sfx-value">60%</span>
-            </label>
+            <div class="setting-section">
+              <div class="setting-section-hdr">Audio</div>
+              <label class="setting">
+                Music
+                <input id="vol-slider" type="range" min="0" max="100" value="20" />
+                <span id="vol-value">20%</span>
+              </label>
+              <label class="setting">
+                SFX
+                <input id="sfx-slider" type="range" min="0" max="100" value="60" />
+                <span id="sfx-value">60%</span>
+              </label>
+            </div>
+            <div class="setting-section">
+              <div class="setting-section-hdr">World</div>
+              <div class="seed-row setting">
+                <span>Seed</span>
+                <input id="seed-input" type="number" value="1337" min="0" max="999999999" />
+                <button id="btn-random-seed">Random</button>
+              </div>
+              <button id="btn-reseed" disabled>Re-render world</button>
+            </div>
           </div>
 
           <div class="panel hidden" id="panel-credits">

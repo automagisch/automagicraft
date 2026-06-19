@@ -1,6 +1,7 @@
 // Thin wrapper over the HUD DOM defined in index.html.
 import type { MusicPlayer } from '../audio/music'
 import type { SfxPlayer } from '../audio/sfx'
+import { storage } from '../storage'
 
 const byId = (id: string): HTMLElement => {
   const el = document.getElementById(id)
@@ -142,8 +143,9 @@ function initCreditsScroll(): void {
   requestAnimationFrame(tick)
 }
 
-// Wires the menu tabs, music-volume slider, and SFX-volume slider. Call once after the player exists.
-export function initMenu(music: MusicPlayer, sfx: SfxPlayer): void {
+// Wires the menu tabs, music-volume slider, SFX-volume slider, and seed UI.
+// `activeSeed` is the seed the current world was generated with.
+export function initMenu(music: MusicPlayer, sfx: SfxPlayer, activeSeed: number): void {
   for (const btn of byId('tabs').querySelectorAll<HTMLButtonElement>('button')) {
     btn.addEventListener('click', () => selectTab(btn.dataset.tab ?? 'explore'))
   }
@@ -158,6 +160,7 @@ export function initMenu(music: MusicPlayer, sfx: SfxPlayer): void {
   slider.addEventListener('input', () => {
     music.setVolume(Number(slider.value) / 100)
     value.textContent = `${slider.value}%`
+    storage.musicVolume.set(music.volume)
   })
 
   const sfxSlider = byId('sfx-slider') as HTMLInputElement
@@ -167,5 +170,34 @@ export function initMenu(music: MusicPlayer, sfx: SfxPlayer): void {
   sfxSlider.addEventListener('input', () => {
     sfx.setVolume(Number(sfxSlider.value) / 100)
     sfxValue.textContent = `${sfxSlider.value}%`
+    storage.sfxVolume.set(sfx.volume)
+  })
+
+  initSeedUI(activeSeed)
+}
+
+function initSeedUI(activeSeed: number): void {
+  const seedInput  = byId('seed-input')  as HTMLInputElement
+  const btnRandom  = byId('btn-random-seed') as HTMLButtonElement
+  const btnReseed  = byId('btn-reseed')  as HTMLButtonElement
+
+  seedInput.value = String(activeSeed)
+
+  const syncReseedBtn = (): void => {
+    const changed = Number(seedInput.value) !== activeSeed
+    btnReseed.disabled = !changed
+  }
+
+  seedInput.addEventListener('input', syncReseedBtn)
+
+  btnRandom.addEventListener('click', () => {
+    seedInput.value = String(Math.floor(Math.random() * 1_000_000_000))
+    syncReseedBtn()
+  })
+
+  btnReseed.addEventListener('click', () => {
+    const n = Math.floor(Math.abs(Number(seedInput.value))) || 0
+    storage.seed.set(n)
+    location.reload()
   })
 }

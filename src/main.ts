@@ -19,12 +19,14 @@ import { GodBlock } from './god/GodBlock'
 import { GodMode } from './god/GodMode'
 import { InventoryUI } from './ui/inventory'
 import { BlockBreakEffect } from './effects/blockBreak'
+import { storage } from './storage'
 
 const WORLD_X = 512
 const WORLD_Y = 96
 const WORLD_Z = 512
 const CHUNK = 32
-const SEED = config.worldSeed
+// Persisted seed overrides the compiled-in default; set by the World settings UI.
+const SEED = storage.seed.get() ?? config.worldSeed
 const PHYSICS_STEP = 1 / 60
 
 // Head-bob feel.
@@ -48,6 +50,11 @@ const waterMaterial = new THREE.MeshBasicMaterial({
 // Background music and SFX start on the first click into the world (autoplay needs a user gesture).
 const music = new MusicPlayer()
 const sfx = new SfxPlayer()
+// Restore persisted volumes immediately so sliders initialise to the saved values.
+const savedMusicVol = storage.musicVolume.get()
+if (savedMusicVol !== null) music.setVolume(savedMusicVol)
+const savedSfxVol = storage.sfxVolume.get()
+if (savedSfxVol !== null) sfx.setVolume(savedSfxVol)
 renderer.domElement.addEventListener('click', () => { music.start(); sfx.start() })
 
 let player: Player
@@ -133,7 +140,7 @@ async function start(): Promise<void> {
   inventoryUI = new InventoryUI()
   blockBreak = new BlockBreakEffect(scene)
 
-  initMenu(music, sfx)
+  initMenu(music, sfx, SEED)
   setLocked(false)
 
   // Dev-only inspection hook (stripped from production builds).
