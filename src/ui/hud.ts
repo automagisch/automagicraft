@@ -55,6 +55,27 @@ export function setUnderwater(underwater: boolean): void {
   byId('water-overlay').classList.toggle('hidden', !underwater)
 }
 
+export function setGodLabel(visible: boolean, html?: string): void {
+  const el = byId('god-label')
+  el.classList.toggle('hidden', !visible)
+  if (visible && html) el.innerHTML = html
+}
+
+export function setBuildControlsVisible(visible: boolean): void {
+  byId('build-controls').classList.toggle('hidden', !visible)
+}
+
+export function setGodModeBadge(visible: boolean): void {
+  byId('god-mode-badge').classList.toggle('hidden', !visible)
+}
+
+export function showBuildHint(): void {
+  const el = byId('build-hint')
+  el.classList.remove('hidden')
+  // Auto-dismiss after 6 seconds
+  setTimeout(() => el.classList.add('hidden'), 6000)
+}
+
 function initMusicControls(music: MusicPlayer): void {
   const btnPrev = byId('btn-prev')
   const btnPlay = byId('btn-playpause')

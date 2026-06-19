@@ -6,12 +6,14 @@ declare const __WC_BIRD_AMOUNT__: number
 declare const __WC_DEER_AMOUNT__: number
 declare const __WC_WALK_SPEED__: number
 declare const __WC_FOG_DENSITY__: number
+declare const __WC_GOD_BLOCK_MARGIN__: number
 
 export const config = {
-  worldSeed:  __WC_WORLD_SEED__,
-  dayLength:  __WC_DAY_LENGTH__,
-  birdAmount: __WC_BIRD_AMOUNT__,
-  deerAmount: __WC_DEER_AMOUNT__,
-  walkSpeed:  __WC_WALK_SPEED__,
-  fogDensity: __WC_FOG_DENSITY__,
+  worldSeed:      __WC_WORLD_SEED__,
+  dayLength:      __WC_DAY_LENGTH__,
+  birdAmount:     __WC_BIRD_AMOUNT__,
+  deerAmount:     __WC_DEER_AMOUNT__,
+  walkSpeed:      __WC_WALK_SPEED__,
+  fogDensity:     __WC_FOG_DENSITY__,
+  godBlockMargin: __WC_GOD_BLOCK_MARGIN__,
 } as const

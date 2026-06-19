@@ -2,6 +2,7 @@ import { createNoise2D } from 'simplex-noise'
 import { Block } from './blocks'
 import type { World } from './World'
 import { mulberry32 } from './rng'
+import { config } from '../config'
 
 export interface TerrainConfig {
   seed: number
@@ -17,9 +18,10 @@ const SAND_LEVEL = 28 // at/below this the surface is sand (valley floor / shore
 const ROCK_LEVEL = 62 // at/above this the surface is bare stone (peaks)
 const WATER_LEVEL = 27 // water fills columns with terrain height below this up to this y
 
-export function generateTerrain(world: World, cfg: TerrainConfig): { treeTops: [number, number, number][] } {
+export function generateTerrain(world: World, cfg: TerrainConfig): { treeTops: [number, number, number][]; godBlockPos: [number, number, number] } {
   const noise2D = createNoise2D(mulberry32(cfg.seed))
   const treeRng = mulberry32(cfg.seed ^ 0x9e3779b9)
+  const godRng  = mulberry32(cfg.seed ^ 0xc0ffee42)
 
   const { sizeX, sizeZ, height } = cfg
   const heights = new Int32Array(sizeX * sizeZ)
@@ -117,7 +119,56 @@ export function generateTerrain(world: World, cfg: TerrainConfig): { treeTops: [
   world.terrainHeight = heights
   world.topY = topY
 
-  return { treeTops }
+  // Place the one God Block on a random grass surface. Margin is configurable via world.env.
+  const inner = Math.max(0, Math.min(0.49, config.godBlockMargin))
+  let godBlockPos: [number, number, number] | null = null
+
+  for (let attempt = 0; attempt < 128; attempt++) {
+    const gx = Math.floor(inner * sizeX + godRng() * sizeX * (1 - inner * 2))
+    const gz = Math.floor(inner * sizeZ + godRng() * sizeZ * (1 - inner * 2))
+    const gy = world.surfaceY(gx, gz)
+    if (gy < 0 || gy + 1 >= height) continue
+    if (world.getBlock(gx, gy, gz) !== Block.Grass) continue
+    if (world.getBlock(gx, gy + 1, gz) !== Block.Air) continue  // needs clear air to float
+    // Flat-ish spot: all 4 cardinal neighbors within 3 blocks in height
+    const neighborOk = [[-1,0],[1,0],[0,-1],[0,1]].every(([dx, dz]) => {
+      const ny = world.surfaceY(gx + dx, gz + dz)
+      return ny >= 0 && Math.abs(ny - gy) <= 3
+    })
+    if (!neighborOk) continue
+    world.setBlock(gx, gy + 1, gz, Block.God)
+    topY[gx + gz * sizeX] = gy + 1
+    godBlockPos = [gx, gy + 1, gz]
+    break
+  }
+
+  // Fallback: scan the whole world for any grass surface with clear air above.
+  if (!godBlockPos) {
+    outer: for (let z = Math.floor(sizeZ * 0.1); z < sizeZ * 0.9; z += 7) {
+      for (let x = Math.floor(sizeX * 0.1); x < sizeX * 0.9; x += 7) {
+        const y = world.surfaceY(x, z)
+        if (y >= 0 && y + 1 < height && world.getBlock(x, y, z) === Block.Grass
+            && world.getBlock(x, y + 1, z) === Block.Air) {
+          world.setBlock(x, y + 1, z, Block.God)
+          topY[x + z * sizeX] = y + 1
+          godBlockPos = [x, y + 1, z]
+          break outer
+        }
+      }
+    }
+  }
+
+  // Last resort: center of world one block above surface.
+  if (!godBlockPos) {
+    const fx = Math.floor(sizeX / 2)
+    const fz = Math.floor(sizeZ / 2)
+    const fy = Math.max(0, world.surfaceY(fx, fz)) + 1
+    world.setBlock(fx, fy, fz, Block.God)
+    topY[fx + fz * sizeX] = fy
+    godBlockPos = [fx, fy, fz]
+  }
+
+  return { treeTops, godBlockPos: godBlockPos! }
 }
 
 // Trees are placed on a coarse grid (one candidate per cell) so they stay naturally spaced.

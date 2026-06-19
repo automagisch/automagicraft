@@ -10,6 +10,7 @@ export const Block = {
   Log: 4,
   Leaves: 5,
   Water: 6,
+  God: 7,   // The God Block — unique, spawned once, unlocks build mode
 } as const
 
 export type BlockId = (typeof Block)[keyof typeof Block]
@@ -42,4 +43,5 @@ export const BLOCK_COLORS: Record<number, BlockColors> = {
   [Block.Leaves]: { top: hex(0x4c763f), side: hex(0x436b39), bottom: hex(0x37592f) },
   // Pastel blue — slightly deeper than the sky to read as water without clashing.
   [Block.Water]: { top: hex(0x7dc8e8), side: hex(0x69b8db), bottom: hex(0x57a8cb) },
+  [Block.God]:   { top: hex(0xf5d060), side: hex(0xe8b82a), bottom: hex(0xd4a020) },
 }

@@ -98,12 +98,15 @@ function vertexAO(side1: boolean, side2: boolean, corner: boolean): number {
 // Builds one BufferGeometry for the chunk region [cx0, cx0+csize) x [cz0, cz0+csize).
 // Only faces adjacent to air are emitted, and each column is meshed only from its lowest
 // exposed level up to its top — buried interior cells are skipped entirely.
+// Pass skipOptimization=true for chunks that have been mutated: the startY shortcut relies
+// on original terrainHeight values that no longer reflect mined-out columns.
 // Returns null for an empty chunk.
 export function buildChunkGeometry(
   world: World,
   cx0: number,
   cz0: number,
   csize: number,
+  skipOptimization = false,
 ): THREE.BufferGeometry | null {
   const positions: number[] = []
   const colors: number[] = []
@@ -119,13 +122,13 @@ export function buildChunkGeometry(
   const terrMap = world.terrainHeight!
 
   // Fast solid test: the world floor (y<0) is solid (cull bottom faces); sky and the
-  // horizontal borders read as air. Water is treated as air here so that solid-block faces
-  // adjacent to water are emitted and stay visible through the translucent water mesh.
+  // horizontal borders read as air. Water and God blocks are treated as air here so that
+  // solid-block faces adjacent to them are emitted.
   const solid = (x: number, y: number, z: number): boolean => {
     if (y < 0) return true
     if (x < 0 || x >= SX || y >= SY || z < 0 || z >= SZ) return false
     const b = data[x + SX * z + SXZ * y]
-    return b !== 0 && b !== Block.Water
+    return b !== 0 && b !== Block.Water && b !== Block.God
   }
 
   const x1 = Math.min(cx0 + csize, SX)
@@ -138,16 +141,18 @@ export function buildChunkGeometry(
 
       // Lowest level that can be exposed: just above the shortest solid neighbor column.
       // Out-of-world neighbors (-1) make the world-edge column mesh to the ground.
-      const tl = x > 0 ? terrMap[x - 1 + z * SX] : -1
-      const tr = x < SX - 1 ? terrMap[x + 1 + z * SX] : -1
-      const td = z > 0 ? terrMap[x + (z - 1) * SX] : -1
-      const tu = z < SZ - 1 ? terrMap[x + (z + 1) * SX] : -1
+      // skipOptimization bypasses this entirely for mutated chunks — terrainHeight values
+      // no longer reflect mined columns so the shortcut would skip newly exposed blocks.
+      const tl = x > 0       ? terrMap[x - 1 + z * SX] : -1
+      const tr = x < SX - 1  ? terrMap[x + 1 + z * SX] : -1
+      const td = z > 0       ? terrMap[x + (z - 1) * SX] : -1
+      const tu = z < SZ - 1  ? terrMap[x + (z + 1) * SX] : -1
       const low = Math.min(tl, tr, td, tu)
-      const startY = low < 0 ? 0 : low
+      const startY = skipOptimization ? 0 : (low < 0 ? 0 : low)
 
       for (let y = startY; y <= top; y++) {
         const id = data[x + SX * z + SXZ * y]
-        if (id === Block.Air || id === Block.Water) continue
+        if (id === Block.Air || id === Block.Water || id === Block.God) continue
 
         const palette = BLOCK_COLORS[id]
         for (const f of FACES) {

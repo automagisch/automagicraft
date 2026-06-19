@@ -32,7 +32,8 @@ export default defineConfig({
     __WC_DAY_LENGTH__:  num('DAY_LENGTH',   150),
     __WC_BIRD_AMOUNT__: num('BIRD_AMOUNT',   80),
     __WC_DEER_AMOUNT__: num('DEER_AMOUNT',   25),
-    __WC_WALK_SPEED__:  num('WALK_SPEED',   4.6),
-    __WC_FOG_DENSITY__: num('FOG_DENSITY', 0.007),
+    __WC_WALK_SPEED__:       num('WALK_SPEED',         4.6),
+    __WC_FOG_DENSITY__:      num('FOG_DENSITY',       0.007),
+    __WC_GOD_BLOCK_MARGIN__: num('GOD_BLOCK_MARGIN',   0.3),
   },
 })

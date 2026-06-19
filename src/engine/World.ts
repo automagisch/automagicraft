@@ -60,6 +60,6 @@ export class World {
     if (y >= this.sizeY) return false
     if (x < 0 || x >= this.sizeX || z < 0 || z >= this.sizeZ) return true
     const b = this.data[this.idx(x, y, z)]
-    return b !== Block.Air && b !== Block.Water
+    return b !== Block.Air && b !== Block.Water && b !== Block.God
   }
 }

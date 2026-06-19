@@ -17,6 +17,12 @@ export class Controls {
 
   private keys = new Set<string>()
 
+  // One-shot interaction flags — consumed by the game loop each frame
+  private _leftClick  = false
+  private _rightClick = false
+  private _interact   = false // E key
+  private _slotDelta  = 0     // accumulated arrow-key slot changes
+
   constructor(
     dom: HTMLElement,
     private readonly onLockChange?: (locked: boolean) => void,
@@ -38,14 +44,32 @@ export class Controls {
       this.state.pitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, this.state.pitch))
     })
 
+    dom.addEventListener('mousedown', (e) => {
+      if (!this.locked) return
+      if (e.button === 0) this._leftClick  = true
+      if (e.button === 2) this._rightClick = true
+    })
+
+    // Prevent the browser context menu while in pointer-lock
+    dom.addEventListener('contextmenu', (e) => { if (this.locked) e.preventDefault() })
+
     window.addEventListener('keydown', (e) => {
       this.keys.add(e.code)
-      if (e.code === 'Space') e.preventDefault() // stop page scroll
+      if (e.code === 'Space') e.preventDefault()
+      if (e.code === 'KeyE') { this._interact = true; e.preventDefault() }
+      if (e.code === 'ArrowLeft')  { this._slotDelta -= 1; e.preventDefault() }
+      if (e.code === 'ArrowRight') { this._slotDelta += 1; e.preventDefault() }
     })
     window.addEventListener('keyup', (e) => {
       this.keys.delete(e.code)
     })
   }
+
+  // Consume one-shot flags (each returns true at most once per press)
+  consumeLeftClick():  boolean { const v = this._leftClick;  this._leftClick  = false; return v }
+  consumeRightClick(): boolean { const v = this._rightClick; this._rightClick = false; return v }
+  consumeInteract():   boolean { const v = this._interact;   this._interact   = false; return v }
+  consumeSlotDelta():  number  { const v = this._slotDelta;  this._slotDelta  = 0;     return v }
 
   // Refresh the movement intent from currently-held keys.
   update(): ControlState {

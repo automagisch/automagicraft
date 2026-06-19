@@ -8,12 +8,17 @@ import { Player } from './player/Player'
 import { Controls } from './player/controls'
 import { updatePlayer, WALK_SPEED } from './player/physics'
 import { Block } from './engine/blocks'
-import { setLoading, setLocked, initMenu, setUnderwater } from './ui/hud'
+import { setLoading, setLocked, initMenu, setUnderwater, setGodLabel, setGodModeBadge, showBuildHint, setBuildControlsVisible } from './ui/hud'
 import { MusicPlayer } from './audio/music'
 import { SfxPlayer } from './audio/sfx'
 import { MobManager } from './mobs/MobManager'
 import { mulberry32 } from './engine/rng'
 import { config } from './config'
+import { raycastVoxel } from './engine/raycast'
+import { GodBlock } from './god/GodBlock'
+import { GodMode } from './god/GodMode'
+import { InventoryUI } from './ui/inventory'
+import { BlockBreakEffect } from './effects/blockBreak'
 
 const WORLD_X = 512
 const WORLD_Y = 96
@@ -49,7 +54,15 @@ let player: Player
 let controls: Controls
 let dayNight: DayNightCycle
 let mobs: MobManager
+let godBlock: GodBlock
+let godMode: GodMode
+let inventoryUI: InventoryUI
+let blockBreak: BlockBreakEffect
+let godModeEverActivated = false
 const spawn: [number, number, number] = [0, 0, 0]
+
+// Chunk mesh registry for hot-rebuild when blocks change
+const chunkMeshes = new Map<string, { solid: THREE.Mesh | null; water: THREE.Mesh | null }>()
 
 // Yield to the event loop via MessageChannel rather than setTimeout: background tabs clamp
 // timers to ~1s, which would make first load take minutes; MessageChannel tasks are not
@@ -73,7 +86,7 @@ window.setTimeout(start, 30)
 
 async function start(): Promise<void> {
   await yieldToLoop()
-  const { treeTops } = generateTerrain(world, { seed: SEED, sizeX: WORLD_X, sizeZ: WORLD_Z, height: WORLD_Y })
+  const { treeTops, godBlockPos } = generateTerrain(world, { seed: SEED, sizeX: WORLD_X, sizeZ: WORLD_Z, height: WORLD_Y })
 
   // Build chunk meshes incrementally so the loading screen stays responsive and shows progress.
   const chunks: [number, number][] = []
@@ -86,9 +99,12 @@ async function start(): Promise<void> {
     while (i < chunks.length && performance.now() - t0 < 12) {
       const [cx, cz] = chunks[i++]
       const geo = buildChunkGeometry(world, cx, cz, CHUNK)
-      if (geo) scene.add(new THREE.Mesh(geo, material))
+      const solidMesh = geo ? new THREE.Mesh(geo, material) : null
+      if (solidMesh) scene.add(solidMesh)
       const waterGeo = buildWaterGeometry(world, cx, cz, CHUNK)
-      if (waterGeo) scene.add(new THREE.Mesh(waterGeo, waterMaterial))
+      const waterMesh = waterGeo ? new THREE.Mesh(waterGeo, waterMaterial) : null
+      if (waterMesh) scene.add(waterMesh)
+      chunkMeshes.set(`${cx},${cz}`, { solid: solidMesh, water: waterMesh })
     }
     setLoading('Building the world…', `${Math.round((i / chunks.length) * 100)}%`)
     await yieldToLoop()
@@ -112,6 +128,10 @@ async function start(): Promise<void> {
   controls = new Controls(renderer.domElement, setLocked)
   dayNight = new DayNightCycle(scene, material, 0.3, waterMaterial)
   mobs = new MobManager(scene, material, treeTops, world, mulberry32(SEED ^ 0xdeadbeef))
+  godBlock = new GodBlock(scene, godBlockPos[0], godBlockPos[1], godBlockPos[2])
+  godMode  = new GodMode(scene)
+  inventoryUI = new InventoryUI()
+  blockBreak = new BlockBreakEffect(scene)
 
   initMenu(music, sfx)
   setLocked(false)
@@ -125,6 +145,49 @@ async function start(): Promise<void> {
 
   loop()
 }
+
+// ── Chunk hot-rebuild ─────────────────────────────────────────────────────────
+
+function rebuildChunk(cx: number, cz: number): void {
+  const key = `${cx},${cz}`
+  const existing = chunkMeshes.get(key)
+  if (existing) {
+    if (existing.solid) { scene.remove(existing.solid); existing.solid.geometry.dispose() }
+    if (existing.water) { scene.remove(existing.water); existing.water.geometry.dispose() }
+  }
+  const geo      = buildChunkGeometry(world, cx, cz, CHUNK, true)
+  const waterGeo = buildWaterGeometry(world, cx, cz, CHUNK)
+  const solidMesh = geo      ? new THREE.Mesh(geo, material)            : null
+  const waterMesh = waterGeo ? new THREE.Mesh(waterGeo, waterMaterial)  : null
+  if (solidMesh) scene.add(solidMesh)
+  if (waterMesh) scene.add(waterMesh)
+  chunkMeshes.set(key, { solid: solidMesh, water: waterMesh })
+}
+
+// Mutate a block and rebuild the affected chunk(s). Also keeps world.topY in sync.
+function setBlockAt(x: number, y: number, z: number, id: number): void {
+  world.setBlock(x, y, z, id)
+  const colIdx = x + z * WORLD_X
+  if (id !== 0 /* Air */) {
+    if ((world.topY![colIdx] ?? -1) < y) world.topY![colIdx] = y
+  } else if (world.topY![colIdx] === y) {
+    let newTop = -1
+    for (let yy = y - 1; yy >= 0; yy--) {
+      if (world.getBlock(x, yy, z) !== 0) { newTop = yy; break }
+    }
+    world.topY![colIdx] = newTop
+  }
+  const cx = Math.floor(x / CHUNK) * CHUNK
+  const cz = Math.floor(z / CHUNK) * CHUNK
+  rebuildChunk(cx, cz)
+  // Rebuild neighbours if on a chunk edge (AO and face-culling are cross-chunk)
+  if ((x - cx) === 0            && cx - CHUNK >= 0)         rebuildChunk(cx - CHUNK, cz)
+  if ((x - cx) === CHUNK - 1   && cx + CHUNK < WORLD_X)    rebuildChunk(cx + CHUNK, cz)
+  if ((z - cz) === 0            && cz - CHUNK >= 0)         rebuildChunk(cx, cz - CHUNK)
+  if ((z - cz) === CHUNK - 1   && cz + CHUNK < WORLD_Z)    rebuildChunk(cx, cz + CHUNK)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 let last = performance.now()
 let accumulator = 0
@@ -198,6 +261,68 @@ function loop(): void {
 
   dayNight.update(dt, camera.position)
   mobs.update(dt, player.position, world, dayNight.time)
+  blockBreak.update(dt)
+
+  // ── God Block / build mode ──────────────────────────────────────────────
+  // Compute look direction from current yaw+pitch (same transform as the camera)
+  const lookDx = -Math.sin(input.yaw) * Math.cos(input.pitch)
+  const lookDy =  Math.sin(input.pitch)
+  const lookDz = -Math.cos(input.yaw) * Math.cos(input.pitch)
+  const hit = controls.locked
+    ? raycastVoxel(world, camera.position.x, camera.position.y, camera.position.z, lookDx, lookDy, lookDz, 6)
+    : null
+
+  godBlock.update(dt, camera.position, hit)
+  godMode.update(hit)
+
+  // Toggle god mode with E when close enough and aimed at the block
+  if (controls.locked && controls.consumeInteract() && godBlock.inRange2 && godBlock.aimed) {
+    godMode.toggle()
+    setGodModeBadge(godMode.active)
+    inventoryUI.setVisible(godMode.active)
+    godBlock.respawn(world, setBlockAt)
+    if (!godModeEverActivated) {
+      godModeEverActivated = true
+      setBuildControlsVisible(true)
+      showBuildHint()
+    }
+  }
+
+  // Block interactions (only in god mode, only when pointer is locked)
+  if (controls.locked && godMode.active && hit) {
+    const slotDelta = controls.consumeSlotDelta()
+    if (slotDelta !== 0) {
+      godMode.selectSlot(slotDelta)
+      inventoryUI.refresh(godMode.slots, godMode.selectedSlot)
+    }
+
+    if (controls.consumeLeftClick()) {
+      if (godMode.placeBlock(hit, world, setBlockAt))
+        inventoryUI.refresh(godMode.slots, godMode.selectedSlot)
+    }
+    if (controls.consumeRightClick()) {
+      if (godMode.collectBlock(hit, world, setBlockAt)) {
+        blockBreak.spawn(hit.x, hit.y, hit.z, hit.blockId)
+        inventoryUI.refresh(godMode.slots, godMode.selectedSlot)
+      }
+    }
+  } else {
+    // Consume to avoid ghost clicks when exiting god mode
+    controls.consumeLeftClick()
+    controls.consumeRightClick()
+    controls.consumeSlotDelta()
+  }
+
+  if (controls.locked && godBlock.aimed && godBlock.inRange2) {
+    const label = godMode.active
+      ? '<kbd>E</kbd> Exit God Mode'
+      : '<kbd>E</kbd> Enter God Mode'
+    setGodLabel(true, label)
+  } else {
+    setGodLabel(false)
+  }
+  // ───────────────────────────────────────────────────────────────────────
+
   music.tick(dt, controls.locked)
 
   const isWalking = player.onGround && Math.hypot(player.vx, player.vz) > 0.4
@@ -234,4 +359,5 @@ function loop(): void {
   }
 
   renderer.render(scene, camera)
+  godMode.renderHand(renderer)
 }

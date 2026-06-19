@@ -45,7 +45,23 @@
       }
       #overlay h1 { font-size: 20px; letter-spacing: 0.5px; margin-bottom: 10px; }
       #overlay p { font-size: 13px; line-height: 1.7; color: #b9c7d2; }
-      #overlay .keys { margin-top: 16px; font-size: 12px; color: #9fb2c0; line-height: 2.1; }
+      #overlay .keys { margin-top: 14px; font-size: 12px; }
+      /* Two-column key table — left col = keys (right-aligned), right col = label */
+      .keys-table { display: table; margin: 0 auto; }
+      .keys-tr { display: table-row; }
+      .keys-td-k {
+        display: table-cell; text-align: right; padding: 3px 10px 3px 0;
+        vertical-align: middle; white-space: nowrap;
+      }
+      .keys-td-l {
+        display: table-cell; text-align: left; padding: 3px 0;
+        vertical-align: middle; color: #b9c7d2; white-space: nowrap; font-size: 12px;
+      }
+      .keys-divider {
+        margin: 10px 0 6px; color: #ffe97a; font-size: 11px;
+        letter-spacing: 0.5px; opacity: 0.85;
+      }
+      .keys-footer { margin-top: 10px; font-size: 11px; color: #7e91a0; }
       kbd {
         display: inline-block; background: #2b3a47;
         border: 1px solid #43586a; border-bottom-width: 2px; border-radius: 5px;
@@ -113,12 +129,72 @@
         background: rgba(30, 90, 150, 0.32);
         pointer-events: none;
       }
+
+      /* God Block label — appears above crosshair when aimed at the God Block */
+      #god-label {
+        position: absolute; left: 50%; top: calc(50% - 36px);
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.58); color: #ffe97a;
+        padding: 4px 13px; border-radius: 6px; font-size: 12px;
+        white-space: nowrap; pointer-events: none; letter-spacing: 0.3px;
+      }
+
+      /* Inventory hotbar */
+      #inventory {
+        position: absolute; bottom: 18px; left: 50%;
+        transform: translateX(-50%);
+        display: flex; gap: 3px; pointer-events: none;
+      }
+      .inv-slot {
+        width: 46px; height: 46px; position: relative;
+        background: rgba(0,0,0,0.48);
+        border: 2px solid rgba(255,255,255,0.18); border-radius: 4px;
+      }
+      .inv-slot.active { border-color: #ffe97a; box-shadow: 0 0 6px rgba(255,220,80,0.5); }
+      .inv-icon {
+        width: 30px; height: 30px; position: absolute;
+        top: 50%; left: 50%; transform: translate(-50%,-56%);
+        border-radius: 2px;
+      }
+      .inv-count {
+        position: absolute; bottom: 2px; right: 4px;
+        font-size: 10px; color: #fff; text-shadow: 1px 1px 0 #000;
+        line-height: 1;
+      }
+
+      /* God Mode indicator badge */
+      #god-mode-badge {
+        position: absolute; top: 14px; left: 50%;
+        transform: translateX(-50%);
+        background: rgba(255, 220, 60, 0.18); border: 1px solid rgba(255,220,60,0.4);
+        color: #ffe97a; padding: 3px 14px; border-radius: 20px; font-size: 11px;
+        letter-spacing: 0.5px; pointer-events: none;
+      }
+
+      /* First-time build mode hint — upper right */
+      #build-hint {
+        position: absolute; top: 14px; right: 16px;
+        background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.15);
+        color: #eaf2f8; padding: 6px 14px; border-radius: 8px; font-size: 11px;
+        letter-spacing: 0.3px; pointer-events: none;
+        animation: fadeInOut 6s ease forwards;
+      }
+      @keyframes fadeInOut {
+        0%   { opacity: 0; }
+        12%  { opacity: 1; }
+        75%  { opacity: 1; }
+        100% { opacity: 0; }
+      }
     </style>
   </head>
   <body>
     <div id="hud">
       <div id="crosshair" class="hidden"></div>
       <div id="water-overlay" class="hidden"></div>
+      <div id="god-label" class="hidden"></div>
+      <div id="god-mode-badge" class="hidden">✦ GOD MODE</div>
+      <div id="build-hint" class="hidden">Press <kbd>Esc</kbd> to see the build controls</div>
+      <div id="inventory" class="hidden"></div>
       <div id="overlay">
         <div class="card">
           <h1 id="ov-title">Generating world…</h1>
@@ -132,9 +208,44 @@
 
           <div class="panel" id="panel-explore">
             <div class="keys" id="ov-keys">
-              <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move &nbsp;·&nbsp;
-              <kbd>Space</kbd> jump &nbsp;·&nbsp; <kbd>Mouse</kbd> look<br />
-              <span style="opacity: 0.7">Click the world to play · Esc releases the cursor</span>
+              <div class="keys-table">
+                <div class="keys-tr">
+                  <div class="keys-td-k"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></div>
+                  <div class="keys-td-l">move</div>
+                </div>
+                <div class="keys-tr">
+                  <div class="keys-td-k"><kbd>Space</kbd></div>
+                  <div class="keys-td-l">jump</div>
+                </div>
+                <div class="keys-tr">
+                  <div class="keys-td-k"><kbd>Mouse</kbd></div>
+                  <div class="keys-td-l">look</div>
+                </div>
+              </div>
+
+              <div id="build-controls" class="hidden">
+                <div class="keys-divider">— Build Mode —</div>
+                <div class="keys-table">
+                  <div class="keys-tr">
+                    <div class="keys-td-k"><kbd>E</kbd></div>
+                    <div class="keys-td-l">toggle God Mode near the block</div>
+                  </div>
+                  <div class="keys-tr">
+                    <div class="keys-td-k"><kbd>←</kbd><kbd>→</kbd></div>
+                    <div class="keys-td-l">cycle block</div>
+                  </div>
+                  <div class="keys-tr">
+                    <div class="keys-td-k"><kbd>LMB</kbd></div>
+                    <div class="keys-td-l">place block</div>
+                  </div>
+                  <div class="keys-tr">
+                    <div class="keys-td-k"><kbd>RMB</kbd></div>
+                    <div class="keys-td-l">collect block</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="keys-footer">Click the world to play &nbsp;·&nbsp; <kbd>Esc</kbd> releases the cursor</div>
             </div>
             <div id="music-controls">
               <button id="btn-prev">&#9664;&#9664;</button>
