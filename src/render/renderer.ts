@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { config } from '../config'
 
 export interface RenderContext {
   renderer: THREE.WebGLRenderer
@@ -21,7 +22,7 @@ export function createRenderer(): RenderContext {
   scene.background = new THREE.Color(SKY)
   // Exponential "infinity fog": terrain dissolves smoothly into the horizon so the world's
   // hard edge is never a visible cut. The day-night cycle recolors this every frame.
-  scene.fog = new THREE.FogExp2(SKY, 0.007)
+  scene.fog = new THREE.FogExp2(SKY, config.fogDensity)
 
   // Far plane sits where the fog is already ~opaque, so distant chunks are clipped (cheaper)
   // without any visible seam.

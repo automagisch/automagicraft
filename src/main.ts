@@ -11,12 +11,15 @@ import { Block } from './engine/blocks'
 import { setLoading, setLocked, initMenu, setUnderwater } from './ui/hud'
 import { MusicPlayer } from './audio/music'
 import { SfxPlayer } from './audio/sfx'
+import { MobManager } from './mobs/MobManager'
+import { mulberry32 } from './engine/rng'
+import { config } from './config'
 
 const WORLD_X = 512
 const WORLD_Y = 96
 const WORLD_Z = 512
 const CHUNK = 32
-const SEED = 1337
+const SEED = config.worldSeed
 const PHYSICS_STEP = 1 / 60
 
 // Head-bob feel.
@@ -45,6 +48,7 @@ renderer.domElement.addEventListener('click', () => { music.start(); sfx.start()
 let player: Player
 let controls: Controls
 let dayNight: DayNightCycle
+let mobs: MobManager
 const spawn: [number, number, number] = [0, 0, 0]
 
 // Yield to the event loop via MessageChannel rather than setTimeout: background tabs clamp
@@ -69,7 +73,7 @@ window.setTimeout(start, 30)
 
 async function start(): Promise<void> {
   await yieldToLoop()
-  generateTerrain(world, { seed: SEED, sizeX: WORLD_X, sizeZ: WORLD_Z, height: WORLD_Y })
+  const { treeTops } = generateTerrain(world, { seed: SEED, sizeX: WORLD_X, sizeZ: WORLD_Z, height: WORLD_Y })
 
   // Build chunk meshes incrementally so the loading screen stays responsive and shows progress.
   const chunks: [number, number][] = []
@@ -107,6 +111,7 @@ async function start(): Promise<void> {
   player = new Player(spawn[0], spawn[1], spawn[2])
   controls = new Controls(renderer.domElement, setLocked)
   dayNight = new DayNightCycle(scene, material, 0.3, waterMaterial)
+  mobs = new MobManager(scene, material, treeTops, mulberry32(SEED ^ 0xdeadbeef))
 
   initMenu(music, sfx)
   setLocked(false)
@@ -192,6 +197,7 @@ function loop(): void {
   camera.rotation.set(input.pitch, input.yaw, roll, 'YXZ')
 
   dayNight.update(dt, camera.position)
+  mobs.update(dt, player.position, world, dayNight.time)
   music.tick(dt, controls.locked)
 
   const isWalking = player.onGround && Math.hypot(player.vx, player.vz) > 0.4
@@ -224,7 +230,7 @@ function loop(): void {
     scene.fog!.color.setHex(0x1a5080)
     ;(scene.fog as THREE.FogExp2).density = 0.18
   } else {
-    ;(scene.fog as THREE.FogExp2).density = 0.007
+    ;(scene.fog as THREE.FogExp2).density = config.fogDensity
   }
 
   renderer.render(scene, camera)

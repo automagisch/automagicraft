@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { config } from '../config'
 
 type RGB = [number, number, number]
 
@@ -28,7 +29,7 @@ const SUN_LOW: RGB = [1.0, 0.58, 0.32]
 const MOON: RGB = [0.82, 0.88, 1.0]
 
 const SKY_RADIUS = 320 // distance the sun/moon/stars sit from the camera
-const DAY_LENGTH = 150 // seconds for a full dawn→day→dusk→night cycle
+const DAY_LENGTH = config.dayLength // seconds for a full dawn→day→dusk→night cycle
 
 function discTexture(): THREE.CanvasTexture {
   const size = 128

@@ -1,6 +1,7 @@
 import { createNoise2D } from 'simplex-noise'
 import { Block } from './blocks'
 import type { World } from './World'
+import { mulberry32 } from './rng'
 
 export interface TerrainConfig {
   seed: number
@@ -9,16 +10,6 @@ export interface TerrainConfig {
   height: number
 }
 
-// Deterministic PRNG so a given seed always produces the same world.
-function mulberry32(seed: number): () => number {
-  let a = seed >>> 0
-  return function () {
-    a = (a + 0x6d2b79f5) | 0
-    let t = Math.imul(a ^ (a >>> 15), 1 | a)
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
-  }
-}
 
 const BASE_LEVEL = 34 // average ground height
 const HILL_AMPLITUDE = 18 // vertical spread of hills/valleys around the base
@@ -26,7 +17,7 @@ const SAND_LEVEL = 28 // at/below this the surface is sand (valley floor / shore
 const ROCK_LEVEL = 62 // at/above this the surface is bare stone (peaks)
 const WATER_LEVEL = 27 // water fills columns with terrain height below this up to this y
 
-export function generateTerrain(world: World, cfg: TerrainConfig): void {
+export function generateTerrain(world: World, cfg: TerrainConfig): { treeTops: [number, number, number][] } {
   const noise2D = createNoise2D(mulberry32(cfg.seed))
   const treeRng = mulberry32(cfg.seed ^ 0x9e3779b9)
 
@@ -101,7 +92,7 @@ export function generateTerrain(world: World, cfg: TerrainConfig): void {
     }
   }
 
-  scatterTrees(world, heights, cfg, treeRng)
+  const treeTops = scatterTrees(world, heights, cfg, treeRng)
 
   // Flood low-lying valleys with water up to WATER_LEVEL.
   for (let z = 0; z < sizeZ; z++) {
@@ -125,18 +116,22 @@ export function generateTerrain(world: World, cfg: TerrainConfig): void {
   }
   world.terrainHeight = heights
   world.topY = topY
+
+  return { treeTops }
 }
 
 // Trees are placed on a coarse grid (one candidate per cell) so they stay naturally spaced.
+// Returns the world-space [x, perchY, z] of each placed tree's trunk top (natural bird perch).
 function scatterTrees(
   world: World,
   heights: Int32Array,
   cfg: TerrainConfig,
   rng: () => number,
-): void {
+): [number, number, number][] {
   const { sizeX, sizeZ, height } = cfg
   const CELL = 7
   const hi = (x: number, z: number) => x + z * sizeX
+  const tops: [number, number, number][] = []
 
   for (let cz = 0; cz < sizeZ; cz += CELL) {
     for (let cx = 0; cx < sizeX; cx += CELL) {
@@ -149,11 +144,15 @@ function scatterTrees(
       const h = heights[hi(x, z)]
       if (world.getBlock(x, h, z) !== Block.Grass) continue // only grow on grass
 
-      placeTree(world, x, h + 1, z, height, rng)
+      const perchY = placeTree(world, x, h + 1, z, height, rng)
+      tops.push([x, perchY, z])
     }
   }
+
+  return tops
 }
 
+// Returns the Y of the top log block (birds perch here, inside the canopy).
 function placeTree(
   world: World,
   x: number,
@@ -161,7 +160,7 @@ function placeTree(
   z: number,
   maxH: number,
   rng: () => number,
-): void {
+): number {
   const trunk = 4 + Math.floor(rng() * 3) // 4..6 logs
   const topY = baseY + trunk - 1
 
@@ -186,4 +185,6 @@ function placeTree(
     }
   }
   leaf(x, topY + 2, z) // small cap
+
+  return topY + 2 // cap leaf block — birds perch on top of this
 }

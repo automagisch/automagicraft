@@ -1,8 +1,9 @@
 import { Block } from '../engine/blocks'
 import type { World } from '../engine/World'
 import type { Player } from './Player'
+import { config } from '../config'
 
-export const WALK_SPEED = 4.6 // blocks / second (top horizontal speed)
+export const WALK_SPEED = config.walkSpeed // blocks / second (top horizontal speed)
 export const GROUND_ACCEL = 55 // how fast we reach target speed on the ground
 export const GROUND_FRICTION = 48 // how fast we stop when no input on the ground
 export const AIR_ACCEL = 16 // gentle steering while airborne (momentum is otherwise kept)
