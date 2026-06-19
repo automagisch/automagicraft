@@ -63,6 +63,18 @@
       #tabs button:hover { background: rgba(67, 88, 106, 0.7); color: #eaf2f8; }
       #tabs button.active { background: #5b87a8; border-color: #79a7c8; color: #fff; }
 
+      /* Music controls */
+      #music-controls { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 14px; }
+      #music-controls button {
+        font: inherit; font-size: 15px; cursor: pointer; line-height: 1;
+        background: rgba(43, 58, 71, 0.6); color: #b9c7d2;
+        border: 1px solid #43586a; border-radius: 7px; padding: 5px 12px;
+        transition: background 0.15s, color 0.15s;
+      }
+      #music-controls button:hover { background: rgba(67, 88, 106, 0.7); color: #eaf2f8; }
+      #music-controls button.active { background: #5b87a8; border-color: #79a7c8; color: #fff; }
+      #music-track { margin-top: 6px; font-size: 11px; color: #7e91a0; }
+
       .panel { margin-top: 14px; }
 
       /* Settings */
@@ -71,9 +83,19 @@
       #vol-value { width: 38px; text-align: right; color: #eaf2f8; }
 
       /* Credits */
-      #panel-credits .lead { margin-bottom: 12px; }
-      .credit { font-size: 12px; line-height: 1.5; padding: 8px 0; border-top: 1px solid rgba(255,255,255,0.08); }
-      .credit:first-of-type { border-top: none; }
+      #credits-scroll-wrap {
+        height: 190px;
+        overflow-y: scroll;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        -webkit-mask-image: linear-gradient(transparent, black 18%, black 82%, transparent);
+        mask-image: linear-gradient(transparent, black 18%, black 82%, transparent);
+        cursor: default;
+      }
+      #credits-scroll-wrap::-webkit-scrollbar { display: none; }
+      .credits-track .lead { margin-bottom: 8px; margin-top: 14px; font-size: 12px; color: #b9c7d2; }
+      .credits-track .lead:first-child { margin-top: 0; }
+      .credit { font-size: 12px; line-height: 1.5; padding: 7px 0; border-top: 1px solid rgba(255,255,255,0.08); }
       .credit .t { color: #eaf2f8; font-size: 13px; }
       .credit .by { color: #9fb2c0; }
       .credit .lic { color: #7e91a0; font-size: 11px; }
@@ -81,12 +103,8 @@
       .credit a:hover { text-decoration: underline; }
 
       .tagline { margin-top: 16px; font-size: 12px; color: #9fb2c0; }
-      .tagline a, .made-by a { color: #8fc0e0; text-decoration: none; }
-      .tagline a:hover, .made-by a:hover { text-decoration: underline; }
-      .made-by {
-        margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.08);
-        font-size: 11px; line-height: 1.6; color: #7e91a0; font-style: italic;
-      }
+      .tagline a { color: #8fc0e0; text-decoration: none; }
+      .tagline a:hover { text-decoration: underline; }
 
       .hidden { display: none !important; }
 
@@ -118,6 +136,12 @@
               <kbd>Space</kbd> jump &nbsp;·&nbsp; <kbd>Mouse</kbd> look<br />
               <span style="opacity: 0.7">Click the world to play · Esc releases the cursor</span>
             </div>
+            <div id="music-controls">
+              <button id="btn-prev">&#9664;&#9664;</button>
+              <button id="btn-playpause">&#9646;&#9646;</button>
+              <button id="btn-next">&#9654;&#9654;</button>
+            </div>
+            <p id="music-track"></p>
             <p class="tagline">
               Crafted by <a href="https://github.com/automagisch" target="_blank" rel="noopener">Automagisch</a>,
               with the help of <a href="https://claude.ai" target="_blank" rel="noopener">Claude</a>.
@@ -127,39 +151,84 @@
           <div class="panel hidden" id="panel-settings">
             <label class="setting">
               Music volume
-              <input id="vol-slider" type="range" min="0" max="100" value="50" />
-              <span id="vol-value">50%</span>
+              <input id="vol-slider" type="range" min="0" max="100" value="20" />
+              <span id="vol-value">20%</span>
+            </label>
+            <label class="setting" style="margin-top: 10px;">
+              SFX: environment
+              <input id="sfx-slider" type="range" min="0" max="100" value="60" />
+              <span id="sfx-value">60%</span>
             </label>
           </div>
 
           <div class="panel hidden" id="panel-credits">
-            <p class="lead">Background music — royalty-free, courtesy of these artists:</p>
-            <div class="credit">
-              <div class="t">Kawaii Kitsune</div>
-              <div class="by">Kevin MacLeod</div>
-              <div class="lic">License RNJBVWPTSLUCOEYF ·
-                <a href="https://uppbeat.io/t/kevin-macleod/kawai-kitsune" target="_blank" rel="noopener">uppbeat.io</a>
+            <div id="credits-scroll-wrap">
+              <div class="credits-track">
+                <p class="lead">Sound effects</p>
+                <div class="credit">
+                  <div class="t">Ambiance Nature Night Cricket Calm Loop</div>
+                  <div class="by">Nox Sound</div>
+                  <div class="lic">Creative Commons 0</div>
+                </div>
+                <div class="credit">
+                  <div class="t">forest park october 1011 221030_0539</div>
+                  <div class="by">Klankbeeld</div>
+                  <div class="lic">Attribution 4.0</div>
+                </div>
+                <div class="credit">
+                  <div class="t">footsteps simulation</div>
+                  <div class="by">minimilka</div>
+                  <div class="lic">Creative Commons 0 ·
+                    <a href="https://freesound.org/s/698584/" target="_blank" rel="noopener">freesound.org</a>
+                  </div>
+                </div>
+                <div class="credit">
+                  <div class="t">Jump_C04</div>
+                  <div class="by">cabled_mess</div>
+                  <div class="lic">Creative Commons 0 ·
+                    <a href="https://freesound.org/s/350906/" target="_blank" rel="noopener">freesound.org</a>
+                  </div>
+                </div>
+                <div class="credit">
+                  <div class="t">agua jump1</div>
+                  <div class="by">Alex_eapo</div>
+                  <div class="lic">Creative Commons 0 ·
+                    <a href="https://freesound.org/s/743909/" target="_blank" rel="noopener">freesound.org</a>
+                  </div>
+                </div>
+                <p class="lead">Background music</p>
+                <div class="credit">
+                  <div class="t">Kawaii Kitsune</div>
+                  <div class="by">Kevin MacLeod</div>
+                  <div class="lic">License RNJBVWPTSLUCOEYF ·
+                    <a href="https://uppbeat.io/t/kevin-macleod/kawai-kitsune" target="_blank" rel="noopener">uppbeat.io</a>
+                  </div>
+                </div>
+                <div class="credit">
+                  <div class="t">Telluride</div>
+                  <div class="by">92elm</div>
+                  <div class="lic">License 592IT8V9ZCSU3C3V ·
+                    <a href="https://uppbeat.io/t/92elm/telluride" target="_blank" rel="noopener">uppbeat.io</a>
+                  </div>
+                </div>
+                <div class="credit">
+                  <div class="t">Willow of the Depths</div>
+                  <div class="by">All Ambient</div>
+                  <div class="lic">License OKA6MGNH5QQ81XGM ·
+                    <a href="https://uppbeat.io/t/all-ambient/willow-of-the-depths" target="_blank" rel="noopener">uppbeat.io</a>
+                  </div>
+                </div>
+                <p class="lead">Made by</p>
+                <div class="credit">
+                  <div class="t">automagicraft</div>
+                  <div class="by" style="font-size: 11px; font-style: italic; color: #7e91a0;">
+                    Built by <a href="https://github.com/automagisch" target="_blank" rel="noopener">Automagisch</a>
+                    &amp; <a href="https://claude.ai" target="_blank" rel="noopener">Claude</a> — I, Claude, kindly
+                    handed Automagisch the keyboard and supervised every block. He thinks it was his idea.
+                  </div>
+                </div>
               </div>
             </div>
-            <div class="credit">
-              <div class="t">Telluride</div>
-              <div class="by">92elm</div>
-              <div class="lic">License 592IT8V9ZCSU3C3V ·
-                <a href="https://uppbeat.io/t/92elm/telluride" target="_blank" rel="noopener">uppbeat.io</a>
-              </div>
-            </div>
-            <div class="credit">
-              <div class="t">Willow of the Depths</div>
-              <div class="by">All Ambient</div>
-              <div class="lic">License OKA6MGNH5QQ81XGM ·
-                <a href="https://uppbeat.io/t/all-ambient/willow-of-the-depths" target="_blank" rel="noopener">uppbeat.io</a>
-              </div>
-            </div>
-            <p class="made-by">
-              Built by <a href="https://github.com/automagisch" target="_blank" rel="noopener">Automagisch</a>
-              &amp; <a href="https://claude.ai" target="_blank" rel="noopener">Claude</a> — I, Claude, kindly
-              handed Automagisch the keyboard and supervised every block. He thinks it was his idea.
-            </p>
           </div>
         </div>
       </div>

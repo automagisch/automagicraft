@@ -10,6 +10,7 @@ import { updatePlayer, WALK_SPEED } from './player/physics'
 import { Block } from './engine/blocks'
 import { setLoading, setLocked, initMenu, setUnderwater } from './ui/hud'
 import { MusicPlayer } from './audio/music'
+import { SfxPlayer } from './audio/sfx'
 
 const WORLD_X = 512
 const WORLD_Y = 96
@@ -36,9 +37,10 @@ const waterMaterial = new THREE.MeshBasicMaterial({
   depthWrite: false,
 })
 
-// Background music starts on the first click into the world (autoplay needs a user gesture).
+// Background music and SFX start on the first click into the world (autoplay needs a user gesture).
 const music = new MusicPlayer()
-renderer.domElement.addEventListener('click', () => music.start())
+const sfx = new SfxPlayer()
+renderer.domElement.addEventListener('click', () => { music.start(); sfx.start() })
 
 let player: Player
 let controls: Controls
@@ -106,7 +108,7 @@ async function start(): Promise<void> {
   controls = new Controls(renderer.domElement, setLocked)
   dayNight = new DayNightCycle(scene, material, 0.3, waterMaterial)
 
-  initMenu(music)
+  initMenu(music, sfx)
   setLocked(false)
 
   // Dev-only inspection hook (stripped from production builds).
@@ -123,6 +125,9 @@ let last = performance.now()
 let accumulator = 0
 let bobPhase = 0
 let bobAmount = 0
+// Previous-frame state for one-shot SFX event detection.
+let prevOnGround = false
+let prevFeetInWater = false
 
 function loop(): void {
   requestAnimationFrame(loop)
@@ -187,6 +192,24 @@ function loop(): void {
   camera.rotation.set(input.pitch, input.yaw, roll, 'YXZ')
 
   dayNight.update(dt, camera.position)
+  music.tick(dt, controls.locked)
+
+  const isWalking = player.onGround && Math.hypot(player.vx, player.vz) > 0.4
+
+  // Jump: player left the ground with upward velocity this frame (not a step off a ledge).
+  if (!player.onGround && prevOnGround && player.vy > 4) sfx.playJump()
+
+  // Water splash: player entered a water block having been airborne (not grounded, not in water).
+  // Using prevOnGround + prevFeetInWater guards against triggering while walking through water.
+  const feetY = Math.floor(player.position[1] - player.hy + 0.1)
+  const feetInWater = world.getBlock(Math.floor(player.position[0]), feetY, Math.floor(player.position[2])) === Block.Water
+  const wasAirborne = !prevOnGround && !prevFeetInWater
+  if (feetInWater && !prevFeetInWater && wasAirborne) sfx.playSplash()
+
+  prevOnGround = player.onGround
+  prevFeetInWater = feetInWater
+
+  sfx.update(dayNight.time, isWalking)
 
   // When the camera eye is inside a water block, show the blue tint overlay and
   // thicken the fog so the world dissolves quickly into murky blue.
