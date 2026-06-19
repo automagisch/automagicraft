@@ -143,16 +143,27 @@ export class GodBlock {
     this.halo.position.y = py + 0.8 + bob
 
     // ── Glow pulse ───────────────────────────────────────────────────────────
-    this.glow.visible = this.inRange10
-    this.halo.visible = this.inRange10
-    if (this.inRange10) {
+    // The halo is always visible and fades with distance so it reads as a beacon
+    // from the mountain peak. The inner glow only kicks in within 20 blocks.
+    const HALO_RANGE = 80
+    const GLOW_RANGE = 20
+    const inHalo = dist < HALO_RANGE
+    this.halo.visible = inHalo
+    this.glow.visible = dist < GLOW_RANGE
+
+    if (inHalo) {
       this.phase += dt * 1.8
       const pulse = Math.sin(this.phase) * 0.18 + 0.82
-      const fast  = Math.sin(this.phase * 1.3 + 1) * 0.08 + 0.92
-      ;(this.glow.material as THREE.SpriteMaterial).opacity = pulse * 0.9
-      this.glow.scale.setScalar(2.4 * fast)
-      ;(this.halo.material as THREE.SpriteMaterial).opacity = pulse * 0.35
+      // sqrt falloff: still visible at distance but dims naturally
+      const proximity = Math.sqrt(1 - Math.min(1, dist / HALO_RANGE))
+      ;(this.halo.material as THREE.SpriteMaterial).opacity = pulse * 0.55 * proximity
       this.halo.scale.setScalar(5.5 * (0.9 + Math.sin(this.phase * 0.7) * 0.1))
+
+      if (dist < GLOW_RANGE) {
+        const fast = Math.sin(this.phase * 1.3 + 1) * 0.08 + 0.92
+        ;(this.glow.material as THREE.SpriteMaterial).opacity = pulse * 0.9
+        this.glow.scale.setScalar(2.4 * fast)
+      }
     }
 
     // ── Dissolve particle update ──────────────────────────────────────────────

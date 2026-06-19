@@ -119,50 +119,56 @@ export function generateTerrain(world: World, cfg: TerrainConfig): { treeTops: [
   world.terrainHeight = heights
   world.topY = topY
 
-  // Place the one God Block on a random grass surface. Margin is configurable via world.env.
-  const inner = Math.max(0, Math.min(0.49, config.godBlockMargin))
+  // Place the one God Block on a grass surface visible from the mountain peak.
+  // We use `heights[]` (the terrain heightmap) rather than surfaceY() so we check the
+  // actual ground surface, not tree canopy tops. Then we verify gy+1 is clear air.
+  const cx2 = sizeX * 0.5
+  const cz2 = sizeZ * 0.5
   let godBlockPos: [number, number, number] | null = null
 
-  for (let attempt = 0; attempt < 128; attempt++) {
-    const gx = Math.floor(inner * sizeX + godRng() * sizeX * (1 - inner * 2))
-    const gz = Math.floor(inner * sizeZ + godRng() * sizeZ * (1 - inner * 2))
-    const gy = world.surfaceY(gx, gz)
-    if (gy < 0 || gy + 1 >= height) continue
-    if (world.getBlock(gx, gy, gz) !== Block.Grass) continue
-    if (world.getBlock(gx, gy + 1, gz) !== Block.Air) continue  // needs clear air to float
-    // Flat-ish spot: all 4 cardinal neighbors within 3 blocks in height
-    const neighborOk = [[-1,0],[1,0],[0,-1],[0,1]].every(([dx, dz]) => {
-      const ny = world.surfaceY(gx + dx, gz + dz)
-      return ny >= 0 && Math.abs(ny - gy) <= 3
-    })
-    if (!neighborOk) continue
+  const tryPlace = (gx: number, gz: number): boolean => {
+    if (gx < 1 || gx >= sizeX - 1 || gz < 1 || gz >= sizeZ - 1) return false
+    const gy = heights[gx + gz * sizeX]
+    if (gy < 1 || gy + 1 >= height) return false
+    if (world.getBlock(gx, gy, gz) !== Block.Grass) return false
+    if (world.getBlock(gx, gy + 1, gz) !== Block.Air) return false
     world.setBlock(gx, gy + 1, gz, Block.God)
     topY[gx + gz * sizeX] = gy + 1
     godBlockPos = [gx, gy + 1, gz]
-    break
+    return true
   }
 
-  // Fallback: scan the whole world for any grass surface with clear air above.
+  // Phase 1: prioritise the mountain foothills (30–80 blocks from center).
+  // This guarantees it's visible from the spawn peak regardless of seed.
+  for (let attempt = 0; attempt < 300 && !godBlockPos; attempt++) {
+    const angle = godRng() * Math.PI * 2
+    const dist  = 30 + godRng() * 50
+    tryPlace(Math.round(cx2 + Math.cos(angle) * dist), Math.round(cz2 + Math.sin(angle) * dist))
+  }
+
+  // Phase 2: widen to the full inner area if foothills had no luck (e.g. very rocky seeds).
+  const inner = Math.max(0, Math.min(0.49, config.godBlockMargin))
+  for (let attempt = 0; attempt < 300 && !godBlockPos; attempt++) {
+    tryPlace(
+      Math.floor(inner * sizeX + godRng() * sizeX * (1 - inner * 2)),
+      Math.floor(inner * sizeZ + godRng() * sizeZ * (1 - inner * 2)),
+    )
+  }
+
+  // Phase 3: exhaustive scan (stride 5) — virtually guaranteed to find something.
   if (!godBlockPos) {
-    outer: for (let z = Math.floor(sizeZ * 0.1); z < sizeZ * 0.9; z += 7) {
-      for (let x = Math.floor(sizeX * 0.1); x < sizeX * 0.9; x += 7) {
-        const y = world.surfaceY(x, z)
-        if (y >= 0 && y + 1 < height && world.getBlock(x, y, z) === Block.Grass
-            && world.getBlock(x, y + 1, z) === Block.Air) {
-          world.setBlock(x, y + 1, z, Block.God)
-          topY[x + z * sizeX] = y + 1
-          godBlockPos = [x, y + 1, z]
-          break outer
-        }
+    outer: for (let z = Math.floor(sizeZ * 0.05); z < sizeZ * 0.95; z += 5) {
+      for (let x = Math.floor(sizeX * 0.05); x < sizeX * 0.95; x += 5) {
+        if (tryPlace(x, z)) break outer
       }
     }
   }
 
-  // Last resort: center of world one block above surface.
+  // Phase 4: absolute last resort — float above whatever is at the world center.
   if (!godBlockPos) {
     const fx = Math.floor(sizeX / 2)
     const fz = Math.floor(sizeZ / 2)
-    const fy = Math.max(0, world.surfaceY(fx, fz)) + 1
+    const fy = Math.max(0, heights[fx + fz * sizeX]) + 1
     world.setBlock(fx, fy, fz, Block.God)
     topY[fx + fz * sizeX] = fy
     godBlockPos = [fx, fy, fz]
