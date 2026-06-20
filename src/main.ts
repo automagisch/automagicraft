@@ -20,6 +20,7 @@ import { GodMode } from './god/GodMode'
 import { InventoryUI } from './ui/inventory'
 import { BlockBreakEffect } from './effects/blockBreak'
 import { storage } from './storage'
+import { IntroScene } from './intro/IntroScene'
 
 const WORLD_X = 512
 const WORLD_Y = 96
@@ -55,7 +56,6 @@ const savedMusicVol = storage.musicVolume.get()
 if (savedMusicVol !== null) music.setVolume(savedMusicVol)
 const savedSfxVol = storage.sfxVolume.get()
 if (savedSfxVol !== null) sfx.setVolume(savedSfxVol)
-renderer.domElement.addEventListener('click', () => { music.start(); sfx.start() })
 
 let player: Player
 let controls: Controls
@@ -65,6 +65,7 @@ let godBlock: GodBlock
 let godMode: GodMode
 let inventoryUI: InventoryUI
 let blockBreak: BlockBreakEffect
+let intro: IntroScene
 let godModeEverActivated = false
 const spawn: [number, number, number] = [0, 0, 0]
 
@@ -133,6 +134,8 @@ async function start(): Promise<void> {
 
   player = new Player(spawn[0], spawn[1], spawn[2])
   controls = new Controls(renderer.domElement, setLocked)
+  // Slight downward tilt so the terrain is visible when the shutters open.
+  controls.state.pitch = -0.22
   dayNight = new DayNightCycle(scene, material, 0.3, waterMaterial)
   mobs = new MobManager(scene, material, treeTops, world, mulberry32(SEED ^ 0xdeadbeef))
   godBlock = new GodBlock(scene, godBlockPos[0], godBlockPos[1], godBlockPos[2])
@@ -141,7 +144,23 @@ async function start(): Promise<void> {
   blockBreak = new BlockBreakEffect(scene)
 
   initMenu(music, sfx, SEED)
-  setLocked(false)
+  // Hide the loading overlay — intro takes over from here; play prompt shows after intro.
+  document.getElementById('overlay')!.classList.add('hidden')
+
+  intro = new IntroScene(storage.seenIntro.get(), renderer.domElement)
+  intro.init(
+    () => {
+      sfx.start()
+      renderer.domElement.classList.add('intro-blurred')
+    },
+    () => {
+      storage.seenIntro.set(true)
+      intro.dispose()
+      controls.allowLock = true
+      music.start()
+      setLocked(false)
+    },
+  )
 
   // Dev-only inspection hook (stripped from production builds).
   if (import.meta.env.DEV) {
@@ -365,6 +384,7 @@ function loop(): void {
     ;(scene.fog as THREE.FogExp2).density = config.fogDensity
   }
 
+  intro?.update(dt)
   renderer.render(scene, camera)
   godMode.renderHand(renderer)
 }

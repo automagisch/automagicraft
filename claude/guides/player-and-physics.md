@@ -183,6 +183,24 @@ tuning — it is not currently exposed via `world.env`.
 
 ---
 
+## Pointer-lock gate (`controls.allowLock`)
+
+`Controls` has an `allowLock = false` property. The canvas click listener only calls
+`requestPointerLock()` when this flag is true:
+
+```ts
+dom.addEventListener('click', () => {
+  if (!this.locked && this.allowLock) dom.requestPointerLock()
+})
+```
+
+This prevents the player from accidentally locking the pointer during pre-gameplay
+sequences (intro, cutscenes, tutorials). Set it to `true` immediately before calling
+`setLocked(false)` once the player is ready to play. See `[[intro]]` for the canonical
+usage pattern.
+
+---
+
 ## Adding new player states
 
 Follow the pattern:

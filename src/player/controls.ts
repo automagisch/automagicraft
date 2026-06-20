@@ -14,6 +14,7 @@ const PITCH_LIMIT = Math.PI / 2 - 0.02
 export class Controls {
   readonly state: ControlState = { forward: 0, right: 0, jump: false, yaw: 0, pitch: 0 }
   locked = false
+  allowLock = false  // must be set true before pointer lock is permitted (prevents locking during intro)
 
   private keys = new Set<string>()
 
@@ -28,7 +29,7 @@ export class Controls {
     private readonly onLockChange?: (locked: boolean) => void,
   ) {
     dom.addEventListener('click', () => {
-      if (!this.locked) dom.requestPointerLock()
+      if (!this.locked && this.allowLock) dom.requestPointerLock()
     })
 
     document.addEventListener('pointerlockchange', () => {

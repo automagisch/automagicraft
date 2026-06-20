@@ -176,6 +176,7 @@ Current guides:
 - [`claude/guides/hud-and-ui.md`](claude/guides/hud-and-ui.md) — overlay, tabs/panels, DOM IDs, adding new UI elements
 - [`claude/guides/audio.md`](claude/guides/audio.md) — MusicPlayer, SfxPlayer, LoopTrack/gain, adding sounds, credits
 - [`claude/guides/mob-creation.md`](claude/guides/mob-creation.md) — adding new mob types
+- [`claude/guides/intro.md`](claude/guides/intro.md) — intro state machine, shutter/blur lifecycle, controls.allowLock gate, progress bar
 
 ## Resources
 

@@ -2,6 +2,7 @@ const K = {
   musicVolume: 'amcraft_music_vol',
   sfxVolume:   'amcraft_sfx_vol',
   seed:        'amcraft_seed',
+  seenIntro:   'amcraft_seen_intro',
 } as const
 
 function getNum(key: string): number | null {
@@ -24,5 +25,9 @@ export const storage = {
     get: (): number | null => getNum(K.seed),
     set: (v: number): void => { localStorage.setItem(K.seed, String(v)) },
     clear: (): void => { localStorage.removeItem(K.seed) },
+  },
+  seenIntro: {
+    get: (): boolean => localStorage.getItem(K.seenIntro) === 'true',
+    set: (v: boolean): void => { localStorage.setItem(K.seenIntro, String(v)) },
   },
 }

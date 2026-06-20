@@ -13,7 +13,106 @@
         background: #9ad0ec;
         font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       }
-      canvas { display: block; }
+      canvas { display: block; transition: filter 4s ease; }
+      canvas.intro-blurred { filter: blur(18px); }
+
+      /* ── Intro sequence ──────────────────────────────────────────────────── */
+      #intro-black {
+        position: fixed; inset: 0;
+        background: #fff;
+        z-index: 5;
+        pointer-events: none;
+      }
+      #intro-start {
+        position: fixed; inset: 0;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        z-index: 9;
+        pointer-events: auto;
+        cursor: pointer;
+        gap: 28px;
+      }
+      #intro-start-title {
+        font-family: Georgia, 'Times New Roman', serif;
+        font-size: clamp(22px, 2.8vw, 38px);
+        font-weight: bold;
+        color: #111;
+        letter-spacing: 0.04em;
+      }
+      #intro-start-prompt {
+        font-family: Georgia, 'Times New Roman', serif;
+        font-size: clamp(11px, 1.1vw, 14px);
+        color: rgba(0,0,0,0.4);
+        letter-spacing: 0.08em;
+        animation: intro-pulse 1.4s ease-in-out infinite;
+      }
+
+      #intro-quote {
+        position: fixed; inset: 0;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        z-index: 8;
+        opacity: 0;
+        transition: opacity 1.2s ease;
+        pointer-events: none;
+        padding: 0 15vw;
+        text-align: center;
+      }
+      #intro-quote.visible { opacity: 1; }
+      #intro-quote-text {
+        font-family: Georgia, 'Times New Roman', serif;
+        font-size: clamp(18px, 2.2vw, 28px);
+        font-weight: bold;
+        color: #111;
+        line-height: 1.55;
+        margin: 0 0 0.75em;
+        white-space: pre-line;
+      }
+      #intro-quote-cite {
+        font-family: Georgia, 'Times New Roman', serif;
+        font-style: italic;
+        font-size: clamp(13px, 1.3vw, 17px);
+        color: #555;
+        display: block;
+        text-align: center;
+        width: 100%;
+      }
+      #intro-shutter-top,
+      #intro-shutter-bottom {
+        position: fixed; left: 0; right: 0;
+        height: 50%;
+        background: #fff;
+        z-index: 7;
+        transition: transform 1.8s cubic-bezier(0.76, 0, 0.24, 1);
+      }
+      #intro-shutter-top    { top: 0;    transform: translateY(0); }
+      #intro-shutter-bottom { bottom: 0; transform: translateY(0); }
+      #intro-shutter-top.open    { transform: translateY(-100%); }
+      #intro-shutter-bottom.open { transform: translateY(100%); }
+      #intro-progress {
+        position: fixed;
+        bottom: 32px;
+        left: calc(50% - 100px);
+        width: 200px;
+        height: 1px;
+        background: rgba(0,0,0,0.35);
+        z-index: 9;
+        transform-origin: left center;
+        transform: scaleX(0);
+        pointer-events: none;
+      }
+      @keyframes intro-pulse {
+        0%,100% { opacity: 0.3; }
+        50%      { opacity: 0.7; }
+      }
+      #intro-skip-hint {
+        position: fixed; bottom: 22px; right: 28px;
+        z-index: 9;
+        color: rgba(0,0,0,0.45);
+        font-size: 12px;
+        letter-spacing: 0.04em;
+        pointer-events: none;
+      }
 
       #hud { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
 
@@ -228,6 +327,17 @@
       <div id="god-mode-badge" class="hidden">✦ GOD MODE</div>
       <div id="build-hint" class="hidden">Press <kbd>Esc</kbd> to see the build controls</div>
       <div id="inventory" class="hidden"></div>
+      <!-- Intro sequence elements (managed by IntroScene.ts) -->
+      <div id="intro-shutter-top"></div>
+      <div id="intro-shutter-bottom"></div>
+      <div id="intro-start" class="hidden">
+        <span id="intro-start-title">automagicraft</span>
+        <span id="intro-start-prompt">Press Enter or click to begin</span>
+      </div>
+      <div id="intro-quote"><p id="intro-quote-text"></p><cite id="intro-quote-cite"></cite></div>
+      <div id="intro-progress" class="hidden"></div>
+      <div id="intro-skip-hint" class="hidden"><kbd>E</kbd>&nbsp; skip</div>
+
       <div id="overlay">
         <div class="card">
           <h1 id="ov-title">Generating world…</h1>
