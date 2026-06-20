@@ -140,18 +140,35 @@ this.prevNight = isNight
 
 ### 7. Register in MobManager
 
+Add a private `spawnX()` method and call it from the constructor. Spawn logic must
+validate terrain — pick random positions in a retry loop and check surface block type:
+
 ```typescript
-// MobManager.ts — add a spawnDeer() call in the constructor
-private spawnDeer(scene, material, rng) {
-  for (let i = 0; i < config.deerAmount; i++) {
-    // pick a random spawn position on the terrain
-    this.mobs.push(new DeerMob(scene, material, spawnPos, palette, rng))
+// MobManager.ts — add a spawnYourMob() call in the constructor
+private spawnYourMob(scene: THREE.Scene, material: THREE.MeshBasicMaterial, world: World, rng: () => number) {
+  const maxAttempts = config.yourMobAmount * 10
+  let spawned = 0, attempts = 0
+  while (spawned < config.yourMobAmount && attempts++ < maxAttempts) {
+    const x = Math.floor(rng() * world.sizeX)
+    const z = Math.floor(rng() * world.sizeZ)
+    const sy = world.surfaceY(x, z)
+    if (sy < 1) continue
+    const block = world.getBlock(x, sy, z)
+    // Choose valid surface types for your mob:
+    if (block !== Block.Grass && block !== Block.Stone) continue
+    this.mobs.push(new YourMob(scene, material, new THREE.Vector3(x + 0.5, sy + FOOT_OFFSET, z + 0.5), rng))
+    spawned++
   }
 }
 ```
 
-Spawning happens once at startup (inside the constructor). `update()` loops
-over `this.mobs` and calls each one — new mob types are included automatically.
+Spawning happens once at startup (inside the constructor). `update()` loops over
+`this.mobs` and calls each one — new mob types are included automatically.
+
+**Surface type reference:**
+- Deer spawn on Grass, Stone, and Sand (`block !== Block.Grass && block !== Block.Stone && block !== Block.Sand` is the rejection condition)
+- Birds don't need a surface check — they spawn at tree perch positions passed in as `treeTops`
+- Pick whichever surfaces make ecological sense for your mob
 
 ### 8. Expose config handles in world.env
 

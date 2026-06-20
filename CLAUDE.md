@@ -168,8 +168,14 @@ are the single source of truth for how to extend each area — they exist so fea
 implemented consistently and without re-deriving decisions already made.
 
 Current guides:
+- [`claude/guides/blocks.md`](claude/guides/blocks.md) — block registry, adding block types, colors, isSolid rules
+- [`claude/guides/world-and-terrain.md`](claude/guides/world-and-terrain.md) — World store, terrain constants, config pipeline, God Block placement
+- [`claude/guides/rendering.md`](claude/guides/rendering.md) — shared chunk material tint, day-night cycle, fog, sky palette
+- [`claude/guides/build-mode.md`](claude/guides/build-mode.md) — GodBlock visuals, GodMode inventory/place/collect, hand rendering
+- [`claude/guides/player-and-physics.md`](claude/guides/player-and-physics.md) — AABB, movement tunables, step-assist, head-bob
+- [`claude/guides/hud-and-ui.md`](claude/guides/hud-and-ui.md) — overlay, tabs/panels, DOM IDs, adding new UI elements
+- [`claude/guides/audio.md`](claude/guides/audio.md) — MusicPlayer, SfxPlayer, LoopTrack/gain, adding sounds, credits
 - [`claude/guides/mob-creation.md`](claude/guides/mob-creation.md) — adding new mob types
-- [`claude/guides/audio.md`](claude/guides/audio.md) — MusicPlayer, SfxPlayer, adding sounds, credits
 
 ## Resources
 

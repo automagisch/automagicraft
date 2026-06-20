@@ -60,8 +60,9 @@ interface LoopTrack {
 }
 ```
 
-All loops start at `volume = 0` and are played immediately on `start()`. Their volumes
-are set every frame inside `update()` via `setVol(track, computedVolume)`.
+All loops start at `volume = 0` and are played immediately on `start()` — which must be
+called from a user gesture (see **Autoplay constraint** at the bottom of this guide).
+Their volumes are set every frame inside `update()` via `setVol(track, computedVolume)`.
 
 ### Gain
 
