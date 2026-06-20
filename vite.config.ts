@@ -35,5 +35,7 @@ export default defineConfig({
     __WC_WALK_SPEED__:       num('WALK_SPEED',         4.6),
     __WC_FOG_DENSITY__:      num('FOG_DENSITY',       0.007),
     __WC_GOD_BLOCK_MARGIN__: num('GOD_BLOCK_MARGIN',   0.3),
+    __WC_WIND_THRESHOLD__:   num('WIND_THRESHOLD',     48),
+    __WC_WIND_MIX__:         num('WIND_MIX',           20),
   },
 })

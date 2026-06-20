@@ -347,7 +347,7 @@ function loop(): void {
   prevOnGround = player.onGround
   prevFeetInWater = feetInWater
 
-  sfx.update(dayNight.time, isWalking)
+  sfx.update(dayNight.time, isWalking, player.position[1])
 
   // When the camera eye is inside a water block, show the blue tint overlay and
   // thicken the fog so the world dissolves quickly into murky blue.

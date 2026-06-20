@@ -7,6 +7,8 @@ declare const __WC_DEER_AMOUNT__: number
 declare const __WC_WALK_SPEED__: number
 declare const __WC_FOG_DENSITY__: number
 declare const __WC_GOD_BLOCK_MARGIN__: number
+declare const __WC_WIND_THRESHOLD__: number
+declare const __WC_WIND_MIX__: number
 
 export const config = {
   worldSeed:      __WC_WORLD_SEED__,
@@ -16,4 +18,6 @@ export const config = {
   walkSpeed:      __WC_WALK_SPEED__,
   fogDensity:     __WC_FOG_DENSITY__,
   godBlockMargin: __WC_GOD_BLOCK_MARGIN__,
+  windThreshold:  __WC_WIND_THRESHOLD__,
+  windMix:        __WC_WIND_MIX__,
 } as const

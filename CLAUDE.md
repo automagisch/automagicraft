@@ -12,19 +12,32 @@ pause for review at the points called out in the active plan.
 
 ## Current stage
 
-**Stage 1 — Traversable voxel world (foundation).** No resume content yet.
-The authoritative plan lives in [`claude/instructions/stage-1-voxel-world-plan.md`](claude/instructions/stage-1-voxel-world-plan.md).
-Read it before changing engine behavior.
+**Stage 1 — complete. Stage 2 (resume layer) — not yet started.**
 
-Stage 1 scope: finite world (**512×512×96**), terrain (rolling hills / valley / one
-centered mountain), blocks (grass, stone, sand) + trees (log, leaves), first-person
-controls (mouse look, WASD walk, Space jump) with gravity, AABB collision, and 1-block
-step-assist. The player **spawns on the mountain peak** for a 360° horizon view.
+The world is fully traversable and polished. Everything below is shipped and working:
 
-Shaped in iteration: a soft **pastel** art direction (leaves are a deeper sage for
-contrast), **infinity fog** so the world edge dissolves into the horizon, **natural
-movement** (ground accel/friction + air momentum + head-bob), smoothed step-up, and a
-**day-night cycle** (orbiting sun/moon, stars, sky/fog recolor, world-tint darkening).
+- **Terrain** — 512×512×96 world, seeded fBm heightmap, centered mountain, rolling hills,
+  valley. Blocks: grass, stone, sand, log, leaves, water. Trees scattered on grass.
+- **Player** — first-person, WASD/mouse-look/Space jump, gravity, AABB collision,
+  1-block step-assist, head-bob. Spawns on the mountain peak.
+- **Rendering** — pastel vertex-color style, per-face shading, baked AO, infinity fog
+  (`FogExp2`). No scene lights, no textures.
+- **Day-night cycle** — orbiting sun/moon, stars, sky/fog recolor, world-tint darkening.
+  Length configurable via `world.env`.
+- **Water** — water blocks in the terrain, semi-transparent water mesh, underwater fog
+  tint + blue overlay, splash SFX on entry.
+- **Mobs** — birds (flock between treetops, day/night aware) and deer (wander, graze,
+  flee). Seeded spawn, day/night population scaling.
+- **Audio** — shuffling background music playlist; ambient forest loops (day/night
+  crossfade); height-based wind crossfade; footsteps; jump and splash one-shots.
+- **Build mode (God Block)** — a golden block spawns in the world; interacting with it
+  unlocks a god-mode inventory for placing and collecting blocks with particle effects.
+- **Persistence** — music/SFX volumes and world seed saved to localStorage.
+- **HUD/menu** — Explore / Settings / Credits tabs, music + SFX volume sliders, seed
+  regeneration UI, scrolling credits panel.
+
+The authoritative stage 1 plan lives in
+[`claude/instructions/stage-1-voxel-world-plan.md`](claude/instructions/stage-1-voxel-world-plan.md).
 
 ---
 
@@ -65,21 +78,39 @@ Thin layer over **Three.js** (no game engine). TypeScript + Vite. Static output.
 
 ```
 src/
-  main.ts              Bootstrap: incremental world build, game loop, spawn, head-bob, camera
+  main.ts              Bootstrap: world build, game loop, spawn, head-bob, camera, block interaction
+  config.ts            World config constants injected at build time from world.env
+  storage.ts           localStorage persistence (music/SFX volumes, world seed)
+  audio/
+    music.ts           MusicPlayer: shuffling playlist, fade in/out on pointer lock
+    sfx.ts             SfxPlayer: ambient loops (forest day/night, wind), footsteps, one-shots
+  effects/
+    blockBreak.ts      Particle burst spawned when a block is collected in build mode
   engine/
     blocks.ts          Block id enum + per-face pastel colors (single source of truth)
     World.ts           Flat Uint8Array voxel store; getBlock/setBlock + isSolid; height maps
     terrain.ts         Seeded fBm heightmap + centered mountain + block assignment + trees
     mesher.ts          Face-culling + AO → one BufferGeometry per chunk (skips buried cells)
+    raycast.ts         DDA voxel raycast for build-mode block targeting
+    rng.ts             Seeded RNG (mulberry32) used by terrain and mob placement
+  god/
+    GodBlock.ts        The golden block in the world that unlocks build mode
+    GodMode.ts         Build mode: place/collect blocks, inventory slot management
+  mobs/
+    Mob.ts             Base animated mob (body + limb rig, movement helpers)
+    BirdMob.ts         Bird: flaps between treetops, circles overhead
+    DeerMob.ts         Deer: wanders terrain, grazes, flees from player
+    MobManager.ts      Spawns, updates, and culls all mob instances
   player/
     Player.ts          Center-based AABB state (position, vx/vy/vz, onGround, stepOffset)
     physics.ts         Velocity movement (ground/air), gravity, AABB collision, jump, step-up
-    controls.ts        Pointer lock, mouse look (yaw/pitch), WASD/Space input
+    controls.ts        Pointer lock, mouse look (yaw/pitch), WASD/Space + interact input
   render/
     renderer.ts        WebGLRenderer, scene, camera, FogExp2 (infinity fog)
     sky.ts             DayNightCycle: sun/moon/stars, sky+fog color, world-tint over time
   ui/
-    hud.ts             Crosshair, click-to-play overlay, loading progress (DOM, not 3D)
+    hud.ts             Overlay, tabs (Explore/Settings/Credits), sliders, seed UI, god labels
+    inventory.ts       Build mode hotbar overlay
 ```
 
 ### Conventions & invariants
@@ -122,9 +153,30 @@ src/
   keep view-only effects (head-bob, `stepOffset` ease-out) in the render frame.
 - **Movement carries momentum** (`vx`/`vz` persist): ground has accel/friction, air keeps
   velocity with only light steering. Tunables live at the top of `physics.ts`.
-- **Day length** and palette of the cycle are constants at the top of `render/sky.ts`.
+- **Day length** is set via `DAY_LENGTH` in `world.env` (flows through `config.ts`). The sky
+  color palette is defined inside `render/sky.ts`.
 - A dev-only `window.__voxel` hook (and `__voxel.frozen` to park the camera) exists in DEV
   builds for inspection; it's stripped from production.
+
+---
+
+## Guides
+
+`claude/guides/` contains implementation guides for specific subsystems. **Read the relevant
+guide before touching that subsystem, and update it when patterns or APIs change.** Guides
+are the single source of truth for how to extend each area — they exist so features are
+implemented consistently and without re-deriving decisions already made.
+
+Current guides:
+- [`claude/guides/mob-creation.md`](claude/guides/mob-creation.md) — adding new mob types
+- [`claude/guides/audio.md`](claude/guides/audio.md) — MusicPlayer, SfxPlayer, adding sounds, credits
+
+## Resources
+
+`claude/resources/` is an inbox for files the owner drops in for processing (audio samples,
+reference docs, images, etc.). **After the resource has been integrated, delete it from this
+directory.** The folder should always be empty between tasks — a file here means it hasn't
+been processed yet.
 
 ---
 
@@ -134,12 +186,16 @@ src/
 2. **Match the surrounding code** — small modules, explicit types, no clever indirection.
 3. **Verify before claiming done:** run the build, and when behavior changes, run the dev
    server and screenshot it (Playwright MCP) to confirm it actually renders/moves.
-4. **Pause at the plan's review gates** (after terrain, after movement) rather than racing
-   to the end.
-5. When something non-obvious is decided (tuning values, design calls), record it here or
-   in the stage plan so it isn't lost.
+4. **Pause at the plan's review gates** rather than racing to the end.
+5. When something non-obvious is decided (tuning values, design calls), record it in the
+   relevant guide so it isn't lost.
+6. **After a feature ships:** delete its instruction file from `claude/features/` and make
+   sure a `claude/guides/` entry covers the subsystem instead. Instruction files are
+   one-shot briefs; guides are the living reference. Don't keep both.
 
-## Roadmap (later stages — NOT in scope until stage 1 is signed off)
-- Block interaction (place/break), richer biomes/water, day-night, audio.
-- **Resume layer:** points of interest, signs/portals, structures that reveal info about
-  the owner; navigation/minimap; mobile/touch controls.
+## Roadmap (next stages)
+
+**Stage 2 — Resume layer** (not yet started):
+- Points of interest, signs/portals, structures that surface information about the owner.
+- Navigation aid / minimap.
+- Mobile/touch controls.
